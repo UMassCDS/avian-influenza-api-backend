@@ -1,4 +1,5 @@
-name: CI/CD Pipeline - Avian Imnfluenza API
+name: CI/CD Pipeline - Avian Influenza API
+
 on:
   # Trigger on pull requests to the main branch
   pull_request:
@@ -20,10 +21,21 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.1.x' # Or your desired R version
+          r-version: '4.1.x'  # Or your desired R version
 
       - name: Install Dependencies
-        run: R -e 'install.packages("plumber", repos="https://cloud.r-project.org")' # Add other dependencies if needed
+        run: R -e 'install.packages("plumber", repos="https://cloud.r-project.org")'  # Add other dependencies if needed
+
+      - name: Build Docker Image
+        run: docker build -t yourdockerhubusername/avian-flu-api:latest .
+
+      # Docker Login to Docker Hub
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKER_USERNAME }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      # Push Docker Image to Docker Hub
+      - name: Push Docker Image to Docker Hub
+        run: docker push yourdockerhubusername/avian-flu-api:latest
 
   # CD Job: Deploy to EC2 (only runs on successful merge to main)
   deploy:
@@ -41,16 +53,20 @@ jobs:
           chmod 400 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Build Docker Image
-        run: docker build -t avian-flu-api .
+      # Pull the latest Docker image from Docker Hub
+      - name: Pull Docker Image from Docker Hub
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker pull yourdockerhubusername/avian-flu-api:latest"
 
+      # Stop and Remove Old Container (if running)
       - name: Stop and Remove Old Container (if running)
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker stop avian-flu-api && docker rm avian-flu-api || true"
 
+      # Run New Docker Container
       - name: Run New Docker Container
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker run -d -p 8000:8000 --name avian-flu-api avian-flu-api"
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker run -d -p 8000:8000 --name avian-flu-api yourdockerhubusername/avian-flu-api:latest"
 
       - name: Report Deployment Success
         run: echo "Successfully deployed the latest code to EC2!"
