@@ -1,11 +1,17 @@
-FROM rocker/r-ver:4.3.0
+# Use the official R image as a base
+FROM rocker/r-ver:4.1.0
 
-RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev libxml2-dev curl git && rm -rf /var/lib/apt/lists/*
-RUN R -e 'install.packages(c("plumber", "roxygen2"), repos="https://cloud.r-project.org")'
+# Install necessary dependencies for Plumber
+RUN R -e "install.packages('plumber')"
 
-COPY api /app/api
-COPY entrypoint.R /app/
-
+# Set working directory inside the container
 WORKDIR /app
+
+# Copy the API directory
+COPY api /app/api
+
+# Expose the port on which the API will run
 EXPOSE 8000
-CMD ["R", "-f", "entrypoint.R", "--vanilla"]
+
+# Run the Plumber API, pointing to the entrypoint.R file within the api directory
+CMD ["R", "-e", "pr <- plumber::plumb('api/entrypoint.R'); pr$run(host='0.0.0.0', port=8000)"]
