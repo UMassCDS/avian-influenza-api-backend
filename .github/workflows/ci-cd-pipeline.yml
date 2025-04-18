@@ -27,7 +27,7 @@ jobs:
         run: R -e 'install.packages("plumber", repos="https://cloud.r-project.org")'  # Add other dependencies if needed
 
       - name: Build Docker Image
-        run: docker build -t yourdockerhubusername/avian-flu-api:latest .
+        run: docker build -t umasscds/avian-flu-infra:latest .
 
       # Docker Login to Docker Hub
       - name: Log in to Docker Hub
@@ -35,7 +35,7 @@ jobs:
 
       # Push Docker Image to Docker Hub
       - name: Push Docker Image to Docker Hub
-        run: docker push yourdockerhubusername/avian-flu-api:latest
+        run: docker push umasscds/avian-flu-infra:latest
 
   # CD Job: Deploy to EC2 (only runs on successful merge to main)
   deploy:
@@ -56,7 +56,7 @@ jobs:
       # Pull the latest Docker image from Docker Hub
       - name: Pull Docker Image from Docker Hub
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker pull yourdockerhubusername/avian-flu-api:latest"
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker pull umasscds/avian-flu-infra:latest"
 
       # Stop and Remove Old Container (if running)
       - name: Stop and Remove Old Container (if running)
@@ -66,7 +66,7 @@ jobs:
       # Run New Docker Container
       - name: Run New Docker Container
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker run -d -p 8000:8000 --name avian-flu-api yourdockerhubusername/avian-flu-api:latest"
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker run -d -p 8000:8000 --name avian-flu-api umasscds/avian-flu-infra:latest"
 
       - name: Report Deployment Success
         run: echo "Successfully deployed the latest code to EC2!"
