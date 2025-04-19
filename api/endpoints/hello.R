@@ -14,6 +14,6 @@ cors <- function(res) {
 # Sample: http://0.0.0.0:8000/echo?text=hi4
 function(text = "") {
   list(
-    message_echo = paste("The text is echo-ing:", text)
+    message_echo = paste("The text is echo:", text)
   )
 }
