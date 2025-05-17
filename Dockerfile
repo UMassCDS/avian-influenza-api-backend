@@ -1,5 +1,5 @@
 # Use the official R image as a base
-FROM rocker/geospatial:latest
+FROM rocker/r-ver:4.1.0
 
 # Install system dependencies required for R package installation
 RUN apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
