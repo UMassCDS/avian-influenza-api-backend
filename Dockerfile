@@ -11,9 +11,6 @@ RUN R CMD INSTALL /avianutils
 # Install additional dependencies for your API
 RUN R -e "install.packages('plumber', repos='https://cloud.r-project.org')"
 
-# Clean up Docker System
-RUN docker system prune -af && sudo apt-get clean
-
 # Set working directory inside the container
 WORKDIR /app
 
