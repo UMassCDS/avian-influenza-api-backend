@@ -24,7 +24,7 @@ jobs:
           r-version: '4.1.x'  # Or your desired R version
 
       - name: Install Dependencies
-        run: R -e 'install.packages("plumber", repos="https://cloud.r-project.org")'  # Add other dependencies if needed
+        run: R --no-restore -e 'install.packages("plumber", repos="https://cloud.r-project.org")'  # Add other dependencies if needed
 
       - name: Build Docker Image
         run: docker build -t umasscds/avian-flu-infra:latest .
