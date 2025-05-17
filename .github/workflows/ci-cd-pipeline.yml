@@ -17,6 +17,11 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+      
+      - name: Clean up Docker System
+        run: |
+          docker system prune -af
+          apt-get clean
 
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
