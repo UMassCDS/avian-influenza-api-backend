@@ -1,2 +1,4 @@
 *.pem
 avian-influenza-api-backend.code-workspace
+.RData
+.Rhistory
