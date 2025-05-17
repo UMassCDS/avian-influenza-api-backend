@@ -1,8 +1,8 @@
 library(plumber)
+library(avianutils)
 
 # Load globals and helpers
 source("config/globals.R")
-source("utils/helpers.R")
 
 # Main router
 pr <- plumber::plumb("endpoints/hello.R")
