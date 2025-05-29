@@ -1,5 +1,5 @@
 # Use the official R image as a base
-FROM rocker/geospatial:latest
+FROM rocker/r-ver:4.1.0
 
 # Install necessary dependencies for Plumber
 RUN R -e "install.packages('plumber')"
