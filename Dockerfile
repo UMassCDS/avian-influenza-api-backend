@@ -1,6 +1,9 @@
 # Use the Rocker Geospatial image as a base
 FROM rocker/geospatial:4.1.0
 
+# Install necessary dependencies for Plumber
+RUN R -e "install.packages('plumber')"
+
 # Set working directory inside the container
 WORKDIR /app
 
