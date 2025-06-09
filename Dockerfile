@@ -1,4 +1,3 @@
-# Use the official R image as a base
 FROM rocker/geospatial:latest
 
 RUN apt-get update && apt-get install -y \
