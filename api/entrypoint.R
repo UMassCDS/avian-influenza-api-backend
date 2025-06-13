@@ -3,6 +3,7 @@ library(plumber)
 # Load globals and helpers
 source("config/globals.R")
 source("utils/helpers.R")
+source("utils/symbolize_raster_data.R")
 
 # Main router
 pr <- plumber::plumb("endpoints/hello.R")
