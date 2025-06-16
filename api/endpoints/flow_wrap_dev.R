@@ -1,17 +1,33 @@
-
-require(plumber)
+library(BirdFlowR)
+source("../utils/symbolize_raster_data.R")
 
 #-------------------------------------------------------------------------------
 # Environment loads (run once on router setup)
 #-------------------------------------------------------------------------------
 md <- new.env()
 index <- load_collection_index()
+exts <- array(0, dim = c(nrow(index), 4))
 for (i in 1:nrow(index)) {
   species <- index[i,2]
   modelname <- index[i,1]
   md[[species]] <- load_model(modelname)
+  extent <- md[[species]]$geom$ext
+  exts[i,] <- extent
 }
-pop <- read.csv("api/data/population.csv") |>
+spp <- index[,2]
+
+xmin <- min(exts[,1])
+xmax <- max(exts[,2])
+ymin <- min(exts[,3])
+ymax <- max(exts[,4])
+min_ext <- c(xmin, xmax, ymin, ymax)
+for (sp in spp) {
+  md[[sp]] <- BirdFlowR::extend_birdflow(md[[sp]], terra::ext(min_ext))
+}
+
+
+
+pop <- read.csv("../data/population.csv") |>
   dplyr::filter(species_code %in% index$species_code) |>
   dplyr::select(species = species_code, population = americas_pop)
 index <- dplyr::left_join(index, pop, by = c("species_code" = "species"))
@@ -20,27 +36,40 @@ md[["index"]] <- index
 
 #* @param week The starting week number
 #* @param taxa Species to include
-#* @param n
+#* @param lat Latitude
+#* @param lon Longitude
+#* @param n Number of weeks to predict out.
 #* @get /flow
-# Sample: http://0.0.0.0:8000/flow?date=text
-flow <- function(taxa, lat, lon, n, week, date, direction = "forward") {
+# Sample: http://0.0.0.0:8000/flow?date=2022-02-02&taxa=buwtea&n=5&lat=30&lon=-85&direction=forward
+flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "forward") {
   birdflow_options(collection_url = "https://birdflow-science.s3.amazonaws.com/collection/")
   model <- md[[taxa]]
   status <- "success"
   index <- md[["index"]]
   n <- as.numeric(n)
   
-  png_out <- "/api/data/png/"
-  tif_out <- "/api/data/tif/"
+  png_out <- "/tmp/png/"
+  tif_out <- "/tmp/tif/"
   
-  dir.create(png_out)
-  dir.create(tif_out)
   
-  start <- as.Date("1-1-2022")
-  if (!is.na(date)) {
+  if (!dir.exists(png_out)) {
+    dir.create(png_out)
+  }
+  if (!dir.exists(tif_out)) {
+    dir.create(tif_out)
+  }
+  
+  
+  start <- as.Date("01-01-2020")
+  if (date != "01-01-2020") {
    start <- as.Date(date) 
-  } else if (!is.na(week)) {
-    start <- start + difftime(as.numeric(week), "weeks")
+  } else if (week != 0) {
+    if (direction == "forward") {
+      start <- start + as.difftime(as.numeric(week), units = "weeks")
+    } else {
+      start <- start - as.difftime(as.numeric(week), units = "weeks")
+    }
+    
   }
   
   corners = data.frame(x = c(-170, -170, -50, -50), y = c(10, 80, 10, 80))
@@ -57,24 +86,32 @@ flow <- function(taxa, lat, lon, n, week, date, direction = "forward") {
   
   dist_len <- nrow(model$distr)
   abundance <- array(0, 
-                      dim = c(nrow(model$distr), n, nrow(index)),
+                      dim = c(nrow(model$distr), n + 1, nrow(index)),
                       dimnames = list(row = NULL,
-                                      week = seq_len(n),
+                                      week = seq_len(n + 1),
                                       species = index$species
                                       ))
 
   for (i in seq_len(nrow(index))) {
     sp <- index$species[i]
-    sp_abund <- array(0, dim = dim(prop_abund)[1:2],
-                     dimnames = dimnames(prop_abund)[1:2])
-    active_model <- index[i,1]
+    sp_abund <- array(0, dim = dim(abundance)[1:2],
+                     dimnames = dimnames(abundance)[1:2])
+    active_model <- md[[sp]]
     
     xy_model <- BirdFlowR::latlon_to_xy(lat, lon, active_model)
     dist_model <- BirdFlowR::as_distr(xy_model, active_model)
     
-    props_pred <- predict(active_model, dist_model, start, n)
+    props_pred <- predict(active_model, 
+                          dist_model, 
+                          start = start, 
+                          n = n, 
+                          direction = direction)
     adj_pred <- props_pred * index[i,10]
     sp_abund <- adj_pred
+    print(dimnames(abundance))
+    print(dim(abundance))
+    print(dimnames(sp_abund))
+    print(dim(sp_abund))
     abundance[, , i] <- sp_abund
     
   }
@@ -86,7 +123,7 @@ flow <- function(taxa, lat, lon, n, week, date, direction = "forward") {
   
   for (i in seq_len(1:nrow(index))) {
     sp <- index[i,2]
-    ac_model <- index[i,1]
+    ac_model <- md[[sp]]
     
     tif_file <- paste(tif_out, sp, n, ".tif", sep = "")
     png_files <- c()
