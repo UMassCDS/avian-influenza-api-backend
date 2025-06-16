@@ -1,3 +1,5 @@
+library(jsonlite)
+
 #* @get /inflow
 #* @param loc
 #* @param week
@@ -24,32 +26,36 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   abundanceImageURL <- function(taxa_index, week) {
     sprintf("%s%s/%s/%s_%s_%d.png", baseUrl, abundanceName, taxa_list[taxa_index], abundanceName, taxa_list[taxa_index], week)
   }
-  abundanceLegendURL <- function(taxa_index) {
-    sprintf("%s%s/%s/scale_%s_%s.json", baseUrl, abundanceName, taxa_list[taxa_index], abundanceName, taxa_list[taxa_index])
+  abundanceLegendURL <- function(taxa_index, week) {
+    sprintf("%s%s/%s/week_%d.json", baseUrl, abundanceName, taxa_list[taxa_index], week)
   }
 
   weekNum <- as.integer(week)
   nResults <- as.integer(n)
-  locations <- if (!is.null(loc)) list(as.numeric(strsplit(loc, ",")[[1]])) else list(c(42.09822, -106.96289))
+  locations <- if (!is.null(loc)) {
+    lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
+  } else {
+    list(c(42.09822, -106.96289))
+  }
 
   result <- list()
-  for (i in 0:(nResults-1)) {
+  for (i in 1:nResults) {
     w <- weekNum - i
     if (w < 1) break
     result[[length(result)+1]] <- list(
-      week = as.numeric(w),
-      url = as.character(abundanceImageURL(taxaIdx, w)),
-      legend = as.character(abundanceLegendURL(taxaIdx))
+      week = unbox(w),
+      url = unbox(abundanceImageURL(taxaIdx, w)),
+      legend = unbox(abundanceLegendURL(taxaIdx, w))
     )
   }
 
   list(
     start = list(
-      week = weekNum,
-      taxa = taxa,
+      week = unbox(weekNum),
+      taxa = unbox(taxa),
       location = locations
     ),
-    status = "success",
+    status = unbox("success"),
     result = result
   )
 }
@@ -64,7 +70,7 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   abundanceName <- "abundance"
   taxa_list <- c(
     "total",
-    "mallar3",
+    "mallard3",
     "ambduc",
     "norpin",
     "norsho",
@@ -80,32 +86,36 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   abundanceImageURL <- function(taxa_index, week) {
     sprintf("%s%s/%s/%s_%s_%d.png", baseUrl, abundanceName, taxa_list[taxa_index], abundanceName, taxa_list[taxa_index], week)
   }
-  abundanceLegendURL <- function(taxa_index) {
-    sprintf("%s%s/%s/scale_%s_%s.json", baseUrl, abundanceName, taxa_list[taxa_index], abundanceName, taxa_list[taxa_index])
+  abundanceLegendURL <- function(taxa_index, week) {
+    sprintf("%s%s/%s/week_%d.json", baseUrl, abundanceName, taxa_list[taxa_index], week)
   }
 
   weekNum <- as.integer(week)
   nResults <- as.integer(n)
-  locations <- if (!is.null(loc)) list(as.numeric(strsplit(loc, ",")[[1]])) else list(c(42.09822, -106.96289))
+  locations <- if (!is.null(loc)) {
+    lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
+  } else {
+    list(c(42.09822, -106.96289))
+  }
 
   result <- list()
-  for (i in 0:(nResults-1)) {
+  for (i in 1:nResults) {
     w <- weekNum + i
     if (w > 52) break
     result[[length(result)+1]] <- list(
-      week = w,
-      url = abundanceImageURL(taxaIdx, w),
-      legend = abundanceLegendURL(taxaIdx)
+      week = unbox(w),
+      url = unbox(abundanceImageURL(taxaIdx, w)),
+      legend = unbox(abundanceLegendURL(taxaIdx, w))
     )
   }
 
   list(
     start = list(
-      week = weekNum,
-      taxa = taxa,
+      week = unbox(weekNum),
+      taxa = unbox(taxa),
       location = locations
     ),
-    status = "success",
+    status = unbox("success"),
     result = result
   )
 }
