@@ -6,7 +6,18 @@
 function(loc = NULL, week = 10, taxa = "total", n = 20) {
   baseUrl <- "https://avianinfluenza.s3.us-east-2.amazonaws.com/"
   abundanceName <- "abundance"
-  taxa_list <- c("total", "mallard3", "canada_goose", "ambduc")
+  taxa_list <- c(
+    "total",
+    "mallar3",
+    "ambduc",
+    "norpin",
+    "norsho",
+    "gnwtea",
+    "buwtea",
+    "amewig",
+    "gadwal",
+    "wooduc"
+  )
   taxaIdx <- match(taxa, taxa_list)
   if (is.na(taxaIdx)) taxaIdx <- 1
 
@@ -26,9 +37,9 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
     w <- weekNum - i
     if (w < 1) break
     result[[length(result)+1]] <- list(
-      week = w,
-      url = abundanceImageURL(taxaIdx, w),
-      legend = abundanceLegendURL(taxaIdx)
+      week = as.numeric(w),
+      url = as.character(abundanceImageURL(taxaIdx, w)),
+      legend = as.character(abundanceLegendURL(taxaIdx))
     )
   }
 
@@ -51,7 +62,18 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
 function(loc = NULL, week = 10, taxa = "total", n = 20) {
   baseUrl <- "https://avianinfluenza.s3.us-east-2.amazonaws.com/"
   abundanceName <- "abundance"
-  taxa_list <- c("total", "mallard3", "canada_goose", "ambduc")
+  taxa_list <- c(
+    "total",
+    "mallar3",
+    "ambduc",
+    "norpin",
+    "norsho",
+    "gnwtea",
+    "buwtea",
+    "amewig",
+    "gadwal",
+    "wooduc"
+  )
   taxaIdx <- match(taxa, taxa_list)
   if (is.na(taxaIdx)) taxaIdx <- 1
 
