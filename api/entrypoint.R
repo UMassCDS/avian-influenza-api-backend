@@ -25,4 +25,4 @@ pr <- pr %>%
   pr_mount("/mock", plumb("endpoints/mock_api.R"))
 
 # Run the API
-pr$run(host = "0.0.0.0", port = 8000)
+pr$run(host = "0.0.0.0", port = 9000)
