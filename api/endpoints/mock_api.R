@@ -24,10 +24,10 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   if (is.na(taxaIdx)) taxaIdx <- 1
 
   abundanceImageURL <- function(taxa_index, week) {
-    sprintf("%s%s/%s/%s_%s_%d.png", baseUrl, abundanceName, taxa_list[taxa_index], abundanceName, taxa_list[taxa_index], week)
+    sprintf("%s%s/%s/abundance_%s_%d.png", baseUrl, abundanceName, taxa_list[taxa_index], taxa_list[taxa_index], week)
   }
-  abundanceLegendURL <- function(taxa_index, week) {
-    sprintf("%s%s/%s/week_%d.json", baseUrl, abundanceName, taxa_list[taxa_index], week)
+  abundanceLegendURL <- function(taxa_index) {
+    sprintf("%s%s/%s/scale_abundance_%s.json", baseUrl, abundanceName, taxa_list[taxa_index], taxa_list[taxa_index])
   }
 
   weekNum <- as.integer(week)
@@ -39,13 +39,14 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   }
 
   result <- list()
-  for (i in 1:nResults) {
+  # Include the current week and previous weeks
+  for (i in 0:(nResults-1)) {
     w <- weekNum - i
     if (w < 1) break
     result[[length(result)+1]] <- list(
       week = unbox(w),
       url = unbox(abundanceImageURL(taxaIdx, w)),
-      legend = unbox(abundanceLegendURL(taxaIdx, w))
+      legend = unbox(abundanceLegendURL(taxaIdx))
     )
   }
 
@@ -84,10 +85,10 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   if (is.na(taxaIdx)) taxaIdx <- 1
 
   abundanceImageURL <- function(taxa_index, week) {
-    sprintf("%s%s/%s/%s_%s_%d.png", baseUrl, abundanceName, taxa_list[taxa_index], abundanceName, taxa_list[taxa_index], week)
+    sprintf("%s%s/%s/abundance_%s_%d.png", baseUrl, abundanceName, taxa_list[taxa_index], taxa_list[taxa_index], week)
   }
-  abundanceLegendURL <- function(taxa_index, week) {
-    sprintf("%s%s/%s/week_%d.json", baseUrl, abundanceName, taxa_list[taxa_index], week)
+  abundanceLegendURL <- function(taxa_index) {
+    sprintf("%s%s/%s/scale_abundance_%s.json", baseUrl, abundanceName, taxa_list[taxa_index], taxa_list[taxa_index])
   }
 
   weekNum <- as.integer(week)
@@ -99,13 +100,14 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   }
 
   result <- list()
-  for (i in 1:nResults) {
+  # Include the current week and next weeks
+  for (i in 0:(nResults-1)) {
     w <- weekNum + i
     if (w > 52) break
     result[[length(result)+1]] <- list(
       week = unbox(w),
       url = unbox(abundanceImageURL(taxaIdx, w)),
-      legend = unbox(abundanceLegendURL(taxaIdx, w))
+      legend = unbox(abundanceLegendURL(taxaIdx))
     )
   }
 
