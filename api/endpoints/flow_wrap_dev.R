@@ -85,18 +85,26 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
   
   
   dist_len <- nrow(model$distr)
-  abundance <- array(0, 
-                      dim = c(nrow(model$distr), n + 1, nrow(index)),
-                      dimnames = list(row = NULL,
-                                      week = seq_len(n + 1),
-                                      species = index$species
-                                      ))
+
+  abundance <- vector("list", nrow(index))  
+  # abundance <- array(0, 
+  #                     dim = c(nrow(model$distr), n + 1, nrow(index)),
+  #                     dimnames = list(row = NULL,
+  #                                     week = seq_len(n + 1),
+  #                                     species = index$species
+  #                                     ))
 
   for (i in seq_len(nrow(index))) {
     sp <- index$species[i]
-    sp_abund <- array(0, dim = dim(abundance)[1:2],
-                     dimnames = dimnames(abundance)[1:2])
+    
     active_model <- md[[sp]]
+    
+    sp_abund <- list(dist = array(dim = c(nrow(active_model$distr), n+1), 
+                                  dimnames = list(row = NULL,
+                                                  week = seq_len(n+1))),
+                     species = sp)
+    # sp_abund <- array(0, dim = dim(abundance)[1:2],
+    #                  dimnames = dimnames(abundance)[1:2])
     
     xy_model <- BirdFlowR::latlon_to_xy(lat, lon, active_model)
     dist_model <- BirdFlowR::as_distr(xy_model, active_model)
@@ -107,12 +115,12 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
                           n = n, 
                           direction = direction)
     adj_pred <- props_pred * index[i,10]
-    sp_abund <- adj_pred
+    sp_abund$dist <- adj_pred
     print(dimnames(abundance))
     print(dim(abundance))
     print(dimnames(sp_abund))
     print(dim(sp_abund))
-    abundance[, , i] <- sp_abund
+    abundance[[i]] <- sp_abund
     
   }
 
@@ -132,16 +140,16 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
       append(png_files, filename)
     }
     # files[i] <- paste(tif_out, "/", taxa, i , ".tif", sep = "")
-    # i_print <- i
-    # if (direction == "inflow") {
-    #   i_print <- -i
-    # }
+    i_print <- i
+    if (direction == "inflow") {
+      i_print <- -i
+    }
     
     day_offset <- as.difftime(i_print, units = "weeks")
     day_current <- start + day_offset
     
    # r <- rasterize_distr(out_dist[,i], model, format = "SpatRaster")
-    r <- terra::rast(abundance[, , i], extent = ac_model$geom$ext, 
+    r <- terra::rast(abundance[[i]]$dist, extent = ac_model$geom$ext, 
                      crs = ac_model$geom$crs)
     terra::writeRaster(r, tif_file, overwrite = TRUE)
     
@@ -151,7 +159,10 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
     r_crop[is.na(r_crop)] <- 0
    
     maxval <- max(maxval, max(terra::values(r_crop), na.rm = TRUE)) |>
-      signif_ceiling(digits = 2)
+      ceiling() |>
+      signif(digits = 2)
+      # not sure what package this function is from
+      #signif_ceiling(digits = 2)
    
     cutoff <- max_val / 255
     r_crop[r_crop < cutoff] <- 0
