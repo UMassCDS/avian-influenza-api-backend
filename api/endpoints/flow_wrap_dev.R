@@ -47,6 +47,14 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
   status <- "success"
   index <- md[["index"]]
   n <- as.numeric(n)
+  index$keep <- FALSE
+  
+  print(index$species_code)
+  index$keep <- {index$species_code %in% taxa}
+  
+  if (taxa %in% c("all","ALL","All")) {
+    index$keep <- TRUE
+  }
   
   png_out <- "/tmp/png/"
   tif_out <- "/tmp/tif/"
@@ -94,7 +102,14 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
   #                                     species = index$species
   #                                     ))
 
+  print(index$keep)
+  
   for (i in seq_len(nrow(index))) {
+    if(!index$keep[i]) {
+      sprintf("Skipping %s...", index$species[i])
+      next
+    }
+    
     sp <- index$species[i]
     
     active_model <- md[[sp]]
@@ -107,7 +122,18 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
     #                  dimnames = dimnames(abundance)[1:2])
     
     xy_model <- BirdFlowR::latlon_to_xy(lat, lon, active_model)
-    dist_model <- BirdFlowR::as_distr(xy_model, active_model)
+    dist_model <- NULL
+    warn <- tryCatch({
+      dist_model <- BirdFlowR::as_distr(xy_model, active_model)
+    }, 
+    warning = function(w) w)
+    if(is(warn, "warning")) {
+      print("Mask Error, skipping")
+      next
+    }
+    print(dist_model)
+    print(typeof(dist_model))
+    print(sp)
     
     props_pred <- predict(active_model, 
                           dist_model, 
@@ -116,10 +142,10 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
                           direction = direction)
     adj_pred <- props_pred * index[i,10]
     sp_abund$dist <- adj_pred
-    print(dimnames(abundance))
-    print(dim(abundance))
-    print(dimnames(sp_abund))
-    print(dim(sp_abund))
+    # print(dimnames(abundance))
+    # print(dim(abundance))
+    # print(dimnames(sp_abund))
+    # print(dim(sp_abund))
     abundance[[i]] <- sp_abund
     
   }
