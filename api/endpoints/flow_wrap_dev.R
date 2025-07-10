@@ -1,7 +1,13 @@
 if(FALSE) {
    # Set example values for debugging
    taxa <- "mallar3"
+   week = 15
+   date <- "2022-01-01"
+   lat <- 42
+   lon <- -70
+   direction <- "forward"
 }
+
 
 
 #-------------------------------------------------------------------------------
@@ -13,122 +19,107 @@ if(FALSE) {
 #* @param n Number of weeks to predict out.
 #* @get /flow
 # Sample: http://0.0.0.0:8000/flow?date=2022-02-02&taxa=buwtea&n=5&lat=30&lon=-85&direction=forward
-flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "forward") {
+flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
   
   status <- "success"
    
   err_msgs <- character(0)
   if(!taxa %in% (c(species$species, "total"))) 
      err_msgs <- c(err_msgs, "invalid taxa")
+
+     
+  if(!week %in% as.character(1:52)) 
+     err_msgs <- c(err_msgs, "invalid week")
+   week <- as.numeric(week)
+   
+  if(!n %in% as.character(1:52))
+      err_msgs <- c(err_msgs, "invalid n")
+  n <- as.numeric(n)
    
   if(!length(err_msgs) == 0){
      status <- "error"
      ### Exit here!!!!!
   } 
   
+  if(!direction %in% c("forward", "backward")) 
+     err_msgs <- c(err_msgs, "invalid direction - should be forward or backward")
+  week <- as.numeric(week)
+  
+  
+  # Set unique ID and output directory for this API call
+  unique_id <- Sys.time() |> 
+     format(format = "%Y-%m-%d_%H-%M-%S")  |>
+  paste0("_", round(runif(1, 0, 1000)))
+
+  
+  out_path <- file.path(local_cache, unique_id) # for this API call
+  dir.create(out_path)  
+  if(!file.exists(out_path))
+     err_msgs <- c(err_msgs, "Could not create output directory")
+  
+  # Define list of target species
+  # Will either be a single species or a vector of all
+  target_species <- ifelse(taxa == "total", species$species, taxa)
+  
+  skipped <- rep(FALSE, length(target_species))
+  
+  rasters <- vector(mode = "list", length(target_species))
+  
+  
+  for(i in seq_along(target_species)) {
+     sp <- target_species[i]
      
-  model <- models[[taxa]]
-  
-  png_out <- "/tmp/png/"
-  tif_out <- "/tmp/tif/"
-  
-  
-  if (!dir.exists(png_out)) {
-    dir.create(png_out)
-  }
-  if (!dir.exists(tif_out)) {
-    dir.create(tif_out)
-  }
-  
-  
-  start <- as.Date("01-01-2020")
-  if (date != "01-01-2020") {
-   start <- as.Date(date) 
-  } else if (week != 0) {
-    if (direction == "forward") {
-      start <- start + as.difftime(as.numeric(week), units = "weeks")
-    } else {
-      start <- start - as.difftime(as.numeric(week), units = "weeks")
-    }
-    
-  }
-  
-  corners = data.frame(x = c(-170, -170, -50, -50), y = c(10, 80, 10, 80))
-  csf <- sf::st_as_sf(corners,coords = c("x", "y"))
-  sf::st_crs(csf) <- "epsg:4326"
-  web_corners <- sf::st_transform(csf, sf::st_crs("EPSG:3857"))
-  ai_app_extent <- terra::ext(web_corners)
-  rm(corners, csf, web_corners)
-  
-  abundance_cols <- ebirdst::ebirdst_palettes(n = 256, type = "weekly") |> 
-    col2rgb() |> t()
-  
-  
-  
-  dist_len <- nrow(model$distr)
+     # Local copy of BirdFlow model  
+     bf <- models[[sp]]
+     
+     # Initial distribution
+     xy <- latlon_to_xy(lat, lon, bf = bf) 
+     start_distr <- as_distr(xy, bf)
 
-  abundance <- vector("list", nrow(index))  
-  # abundance <- array(0, 
-  #                     dim = c(nrow(model$distr), n + 1, nrow(index)),
-  #                     dimnames = list(row = NULL,
-  #                                     week = seq_len(n + 1),
-  #                                     species = index$species
-  #                                     ))
-
-  print(index$keep)
-  
-  for (i in seq_len(nrow(index))) {
-    if(!index$keep[i]) {
-      sprintf("Skipping %s...", index$species[i])
-      next
-    }
+     if(!is_distr_valid(bf, start_distr, timestep = week)){
+        skipped[i] <- TRUE
+        next
+     }
+     
+     pred <- predict(bf, 
+                     start_distr, 
+                     start = week, 
+                     n = n, 
+                     direction = direction)
+     
+     # Proportion of population in starting location
+     location_i <- xy_to_i(xy, bf = bf)
+     initial_population_distr <- get_distr(bf, which = week)
+     start_proportion <- initial_population_distr[location_i] / 1
+     
+     # Convert to Birds / sq km
+     abundance <- pred * species$population[species$species == sp] / 
+        prod(res(bf)/1000) * start_proportion
     
-    sp <- index$species[i]
-    
-    active_model <- md[[sp]]
-    
-    sp_abund <- list(dist = array(dim = c(nrow(active_model$distr), n+1), 
-                                  dimnames = list(row = NULL,
-                                                  week = seq_len(n+1))),
-                     species = sp)
-    # sp_abund <- array(0, dim = dim(abundance)[1:2],
-    #                  dimnames = dimnames(abundance)[1:2])
-    
-    xy_model <- BirdFlowR::latlon_to_xy(lat, lon, active_model)
-    dist_model <- NULL
-    warn <- tryCatch({
-      dist_model <- BirdFlowR::as_distr(xy_model, active_model)
-    }, 
-    warning = function(w) w)
-    if(is(warn, "warning")) {
-      print("Mask Error, skipping")
-      next
-    }
-    print(dist_model)
-    print(typeof(dist_model))
-    print(sp)
-    
-    props_pred <- predict(active_model, 
-                          dist_model, 
-                          start = start, 
-                          n = n, 
-                          direction = direction)
-    adj_pred <- props_pred * index[i,10]
-    sp_abund$dist <- adj_pred
-    # print(dimnames(abundance))
-    # print(dim(abundance))
-    # print(dimnames(sp_abund))
-    # print(dim(sp_abund))
-    abundance[[i]] <- sp_abund
-    
+     r <- rasterize_distr(abundance, bf = bf, format = "terra")
+     
+     rasters[[i]] <- r
   }
-
+ 
+  
+  if(all(skipped)) {
+     err_msgs <- c(err_msgs, "Invalid starting location")
+  }
+  
+  rasters <- rasters[!skipped]
+  
+  ## EBP: stopped revisions here 2025-07-10
+  # Need to :
+  # aggregate list of rasters into one raster
+  # write tif 
+  # write pngs
+  # Remaining code has not been revised yet
   
   
-  files <- c()
-  maxval <- -Inf
   
-  for (i in seq_len(1:nrow(index))) {
+  
+  
+  for (i in seq_len(ncol(abundance))) {
     sp <- index[i,2]
     ac_model <- md[[sp]]
     
@@ -144,12 +135,11 @@ flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "
       i_print <- -i
     }
     
-    day_offset <- as.difftime(i_print, units = "weeks")
-    day_current <- start + day_offset
     
    # r <- rasterize_distr(out_dist[,i], model, format = "SpatRaster")
     r <- terra::rast(abundance[[i]]$dist, extent = ac_model$geom$ext, 
                      crs = ac_model$geom$crs)
+    
     terra::writeRaster(r, tif_file, overwrite = TRUE)
     
     r_webmerc <- terra::project(r, terra::crs("EPSG: 3857"))
