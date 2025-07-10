@@ -43,9 +43,25 @@ for (sp in taxa$taxa) {
    models[[sp]] <- load_model(model = sp)
 }
 
+# Define extent of exported data (ai_app_extent)
+corners = data.frame(x = c(-170, -170, -50, -50), y = c(10, 80, 10, 80))
+csf <- sf::st_as_sf(corners,coords = c("x", "y"))
+sf::st_crs(csf) <- "epsg:4326"
+web_corners <- sf::st_transform(csf, sf::st_crs("EPSG:3857"))
+ai_app_extent <- terra::ext(web_corners)
+rm(corners, csf, web_corners)
+
+
 
 # Define local cache for temporary output images
 # Will then be copied to AWS
 local_cache <- tempdir()
 if(!file.exists(local_cache))
    dir.create(local_cache)
+
+## Create flow colors file -- might change later
+# ebirdst::ebirdst_palettes(n = 256, type = "weekly") |> 
+#   col2rgb() |> t() |> saveRDS(file = "api/config/flow_cols.Rds")
+
+# Load flow colors
+flow_cols <- readRDS("api/config/flow_cols.Rds")
