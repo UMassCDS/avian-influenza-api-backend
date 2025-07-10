@@ -2,7 +2,7 @@
 FROM rocker/r-ver:4.1.0
 
 # Install necessary dependencies for Plumber
-RUN R -e "install.packages('plumber')"
+RUN R -e "install.packages('plumber', 'jsonlite')"
 
 # Set working directory inside the container
 WORKDIR /app
