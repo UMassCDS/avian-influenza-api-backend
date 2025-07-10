@@ -3,3 +3,4 @@ avian-influenza-api-backend.code-workspace
 *.tif
 *.png
 *.tiff
+.Rproj.user
