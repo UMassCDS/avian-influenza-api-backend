@@ -1,37 +1,9 @@
-library(BirdFlowR)
-source("../utils/symbolize_raster_data.R")
-
-#-------------------------------------------------------------------------------
-# Environment loads (run once on router setup)
-#-------------------------------------------------------------------------------
-md <- new.env()
-index <- load_collection_index()
-exts <- array(0, dim = c(nrow(index), 4))
-for (i in 1:nrow(index)) {
-  species <- index[i,2]
-  modelname <- index[i,1]
-  md[[species]] <- load_model(modelname)
-  extent <- md[[species]]$geom$ext
-  exts[i,] <- extent
-}
-spp <- index[,2]
-
-xmin <- min(exts[,1])
-xmax <- max(exts[,2])
-ymin <- min(exts[,3])
-ymax <- max(exts[,4])
-min_ext <- c(xmin, xmax, ymin, ymax)
-for (sp in spp) {
-  md[[sp]] <- BirdFlowR::extend_birdflow(md[[sp]], terra::ext(min_ext))
+if(FALSE) {
+   # Set example values for debugging
+   taxa <- "mallar3"
 }
 
 
-
-pop <- read.csv("../data/population.csv") |>
-  dplyr::filter(species_code %in% index$species_code) |>
-  dplyr::select(species = species_code, population = americas_pop)
-index <- dplyr::left_join(index, pop, by = c("species_code" = "species"))
-md[["index"]] <- index
 #-------------------------------------------------------------------------------
 
 #* @param week The starting week number
@@ -42,19 +14,20 @@ md[["index"]] <- index
 #* @get /flow
 # Sample: http://0.0.0.0:8000/flow?date=2022-02-02&taxa=buwtea&n=5&lat=30&lon=-85&direction=forward
 flow <- function(taxa, lat, lon, n, week = 0, date = "01-01-2020", direction = "forward") {
-  birdflow_options(collection_url = "https://birdflow-science.s3.amazonaws.com/collection/")
-  model <- md[[taxa]]
+  
   status <- "success"
-  index <- md[["index"]]
-  n <- as.numeric(n)
-  index$keep <- FALSE
+   
+  err_msgs <- character(0)
+  if(!taxa %in% (c(species$species, "total"))) 
+     err_msgs <- c(err_msgs, "invalid taxa")
+   
+  if(!length(err_msgs) == 0){
+     status <- "error"
+     ### Exit here!!!!!
+  } 
   
-  print(index$species_code)
-  index$keep <- {index$species_code %in% taxa}
-  
-  if (taxa %in% c("all","ALL","All")) {
-    index$keep <- TRUE
-  }
+     
+  model <- models[[taxa]]
   
   png_out <- "/tmp/png/"
   tif_out <- "/tmp/tif/"
