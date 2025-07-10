@@ -44,5 +44,8 @@ for (sp in taxa$taxa) {
 }
 
 
-
-
+# Define local cache for temporary output images
+# Will then be copied to AWS
+local_cache <- tempdir()
+if(!file.exists(local_cache))
+   dir.create(local_cache)
