@@ -9,6 +9,7 @@ source("utils/helpers.R")
 source("utils/symbolize_raster_data.R")
 source("utils/save_json_palette.R")
 source("utils/range_rescale.R")
+source("utils/flow.R")
 
 # Mount  endpoints
 pr <- pr() %>%

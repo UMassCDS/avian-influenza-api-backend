@@ -6,7 +6,7 @@
 
 # Using JSON so that the taxa file is identical to that used by front end:
 #  avianfluapp/src/assets/taxa.json
-species <- jsonlite::read_json("api/config/taxa.json") |> 
+species <- jsonlite::read_json("config/taxa.json") |> 
    do.call(rbind, args = _) |> 
    as.data.frame()
 names(species) <- c("species", "label")
@@ -21,7 +21,7 @@ species <- species[!species$species == "total", ]
 
 # File from  
 # https://github.com/birdflow-science/BirdFlowWork/tree/main/population/data/final
-pop <- read.csv("api/config/population.csv") |>
+pop <- read.csv("config/population.csv") |>
    dplyr::filter(species_code %in% species$species) |>
    dplyr::select(species = species_code, population = americas_pop)
 
@@ -69,7 +69,7 @@ if(!file.exists(local_cache))
 
 ## Create flow colors file -- might change later
 # ebirdst::ebirdst_palettes(n = 256, type = "weekly") |> 
-#   col2rgb() |> t() |> saveRDS(file = "api/config/flow_cols.Rds")
+#   col2rgb() |> t() |> saveRDS(file = "config/flow_cols.Rds")
 
 # Load flow colors
-flow_colors <- readRDS("api/config/flow_cols.Rds")
+flow_colors <- readRDS("config/flow_cols.Rds")

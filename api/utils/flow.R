@@ -12,13 +12,16 @@ if(FALSE) {
    library(terra)
 
    # Load globals and helpers
-   source("api/config/globals.R")
-   source("api/utils/helpers.R")
-   source("api/utils/symbolize_raster_data.R")
-   source("api/utils/save_json_palette.R")
-   source("api/utils/range_rescale.R")
+   original_wd <- getwd()
+   setwd("api")
+   source("config/globals.R")
+   source("utils/helpers.R")
+   source("utils/symbolize_raster_data.R")
+   source("utils/save_json_palette.R")
+   source("utils/range_rescale.R")
+   setwd(original_wd)
    
-   
+
    # Set example arguments values as R objects 
    taxa <- "mallar3"
    taxa <- "total"  # all taxa
@@ -57,13 +60,25 @@ if(FALSE) {
 #'    `taxa`, as input
 #'    `loc`,  as input
 #'    `type` - "inflow" or "outflow"
-#' `status` either: "success", "error"
+#' `status` either: "success", "error", "outside mask"
 #' `result` a list of information about the images each item includes
 #'    `week`
 #'    `url`  
 #'    `legend` 
-flow <- function(taxa, loc, n, week = 0,direction = "forward") {
+flow <- function( loc, week, taxa, n, direction = "forward") {
 
+   format_error <- function(message, status = "error") {
+     list( start = list(
+        week = week,
+        taxa = taxa,
+        loc = loc
+     ),
+     status = status, 
+     message = message)
+      
+   }
+   
+   
   # Convert location into lat,lon data frame   
   lat_lon  <- strsplit(loc, ";") |> 
      unlist() |>
@@ -75,30 +90,22 @@ flow <- function(taxa, loc, n, week = 0,direction = "forward") {
   names(lat_lon) <- c("lat", "lon")
   
  
-   
-  status <- "success"
-   
-  err_msgs <- character(0)
-  if(!taxa %in% (c(species$species, "total"))) 
-     err_msgs <- c(err_msgs, "invalid taxa")
+  if(!taxa %in% (c(species$species, "total"))) {
+     return(format_error("invalid taxa"))
+  }
 
      
   if(!week %in% as.character(1:52)) 
-     err_msgs <- c(err_msgs, "invalid week")
-   week <- as.numeric(week)
-   
+     return(format_error("invalid week"))
+  week <- as.numeric(week)
+  
   if(!n %in% as.character(1:52))
-      err_msgs <- c(err_msgs, "invalid n")
+     return(format_error("invalid n"))
   n <- as.numeric(n)
    
-  if(!length(err_msgs) == 0){
-     status <- "error"
-     ### Exit here!!!!!
-  } 
-  
   if(!direction %in% c("forward", "backward")) 
-     err_msgs <- c(err_msgs, "invalid direction - should be forward or backward")
-  week <- as.numeric(week)
+    return(format_error("invalid direction - should be forward or backward"))
+ 
   
   if(direction == "forward") {
      flow_type <- "outflow" 
@@ -115,7 +122,7 @@ flow <- function(taxa, loc, n, week = 0,direction = "forward") {
   out_path <- file.path(local_cache, unique_id) # for this API call
   dir.create(out_path)  
   if(!file.exists(out_path))
-     err_msgs <- c(err_msgs, "Could not create output directory")
+     return(format_error("Could not create output directory"))
   
   # Define list of target species
   # Will either be a single species or a vector of all
@@ -125,11 +132,9 @@ flow <- function(taxa, loc, n, week = 0,direction = "forward") {
      target_species <- taxa
   }
   
+  # Create prediction rasters for all target species 
   skipped <- rep(FALSE, length(target_species))
-  
   rasters <- vector(mode = "list", length(target_species))
-  
-  
   for(i in seq_along(target_species)) {
      sp <- target_species[i]
      
@@ -178,7 +183,7 @@ flow <- function(taxa, loc, n, week = 0,direction = "forward") {
   
   # Drop any models that were skipped (due to invalid starting location & date)
   if(all(skipped)) {
-     err_msgs <- c(err_msgs, "Invalid starting location")
+     return(format_error("Invalid starting location",  "outside mask"))
   }
   rasters <- rasters[!skipped]
   
@@ -191,7 +196,7 @@ flow <- function(taxa, loc, n, week = 0,direction = "forward") {
      }
   }
 
-   
+  # Write multi-band tiff with data
   tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
   tiff_path <- file.path(out_path,tiff_file)
   tiff_bucket_path <- paste0(s3_flow_base, tiff_file)
@@ -221,7 +226,7 @@ flow <- function(taxa, loc, n, week = 0,direction = "forward") {
 
   # Urls
   png_urls <- paste0(s3_flow_url, unique_id, "/",  png_files) 
-  symbology_urls <- paste0(s3_base_url,unique_id, "/", symbology_files_files)
+  symbology_urls <- paste0(s3_base_url,unique_id, "/", symbology_files)
   
   # bucket paths
   png_bucket_paths <- paste0(s3_flow_base, unique_id, "/", png_files)
