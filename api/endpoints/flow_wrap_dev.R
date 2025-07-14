@@ -1,11 +1,21 @@
 if(FALSE) {
+   # Manually set function arguments for dev and debugging
+   
+   # Load globals and helpers
+   
+   source("api/config/globals.R")
+   source("api/utils/helpers.R")
+   source("api/utils/symbolize_raster_data.R")
+   
    # Set example values for debugging
    taxa <- "mallar3"
+   taxa <- "total"  # all taxa
    week = 15
    date <- "2022-01-01"
    lat <- 42
    lon <- -70
    direction <- "forward"
+   n <- 10 # prob 20 when deployed
 }
 
 
@@ -45,6 +55,11 @@ flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
      err_msgs <- c(err_msgs, "invalid direction - should be forward or backward")
   week <- as.numeric(week)
   
+  if(direction == "forward") {
+     flow_type <- "outflow" 
+  } else {
+     flow_type <- "inflow"
+  }
   
   # Set unique ID and output directory for this API call
   unique_id <- Sys.time() |> 
@@ -59,7 +74,11 @@ flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
   
   # Define list of target species
   # Will either be a single species or a vector of all
-  target_species <- ifelse(taxa == "total", species$species, taxa)
+  target_species <- if(taxa == "total") {
+     target_species <- species$species
+  } else { 
+     target_species <- taxa
+  }
   
   skipped <- rep(FALSE, length(target_species))
   
@@ -101,6 +120,28 @@ flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
      rasters[[i]] <- r
   }
  
+  #####
+  if (length(target_species > 1)) {
+     # combine into one here
+     
+     # combined <-  [sum of rasters in "rasters" (list)]
+     
+  } else {
+     
+     combined <- rasters[[1]]
+  }
+
+  
+  # write combined to geotiff here
+  
+  # Path:
+  # "<out_path>/<flow_type>_<taxa>.tif
+  # e.g.:  /inflow_total.tif
+  
+  
+  ######
+  
+  
   
   if(all(skipped)) {
      err_msgs <- c(err_msgs, "Invalid starting location")
@@ -112,9 +153,18 @@ flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
   # Need to :
   # aggregate list of rasters into one raster
   # write tif 
+  # Reproject and crop
   # write pngs
-  # Remaining code has not been revised yet
+  #   - loop through weeks writing each one out with existing function
+  # Path:
+  # "<out_path>/<flow_type>_<taxa>_<week>.png
+  # e.g.:  /inflow_total_1.tif
   
+  
+  # Write json symbology file
+  # Copy to S3 bucket
+  # Return json list
+
   
   
   
