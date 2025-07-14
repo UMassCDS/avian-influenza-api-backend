@@ -119,25 +119,21 @@ flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
      
      rasters[[i]] <- r
   }
- 
-  #####
-  if (length(target_species > 1)) {
-     # combine into one here
-     
-     # combined <-  [sum of rasters in "rasters" (list)]
-     
-  } else {
-     
-     combined <- rasters[[1]]
+  
+  combined <- rasters[[1]]
+  if (length(target_species) > 1) {
+     for(i in 2:length(target_species)) {
+        combined <- combined + rasters[[i]]
+     }
   }
-
+  
+  #####
   
   # write combined to geotiff here
   
   # Path:
   # "<out_path>/<flow_type>_<taxa>.tif
   # e.g.:  /inflow_total.tif
-  
   
   ######
   

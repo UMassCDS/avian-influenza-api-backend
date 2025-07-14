@@ -4,9 +4,9 @@ library(jsonlite)
 
 
 # Load globals and helpers
-source("config/globals.R")
-source("utils/helpers.R")
-source("utils/symbolize_raster_data.R")
+source("api/config/globals.R")
+source("api/utils/helpers.R")
+source("api/utils/symbolize_raster_data.R")
 
 # Mount  endpoints
 pr <- pr() %>%
