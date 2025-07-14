@@ -7,6 +7,7 @@ library(jsonlite)
 source("config/globals.R")
 source("utils/helpers.R")
 source("utils/symbolize_raster_data.R")
+source("utils/save_json_palette.R")
 
 # Mount  endpoints
 pr <- pr() %>%
