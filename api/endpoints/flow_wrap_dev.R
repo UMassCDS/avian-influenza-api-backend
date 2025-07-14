@@ -135,6 +135,9 @@ flow <- function(taxa, lat, lon, n, week = 0, date, direction = "forward") {
   # "<out_path>/<flow_type>_<taxa>.tif
   # e.g.:  /inflow_total.tif
   
+  library(terra)
+  combined_geotiff_path <- file.path(out_path, paste0(flow_type, "_", "taxa", ".tif"))
+  terra::writeRaster(combined, combined_geotiff_path, overwrite = TRUE, filetype = 'GTiff')
   ######
   
   
