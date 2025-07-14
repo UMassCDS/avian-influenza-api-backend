@@ -1,7 +1,8 @@
 library(plumber)
 library(BirdFlowR)
 library(jsonlite)
-
+library(paws)
+library(terra)
 
 # Load globals and helpers
 source("config/globals.R")
