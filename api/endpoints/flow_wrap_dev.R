@@ -158,64 +158,39 @@ flow <- function(taxa, loc, n, week = 0, date, direction = "forward") {
      rasters[[i]] <- r
   }
   
-  
   # Drop any models that were skipped (due to invalid starting location & date)
   if(all(skipped)) {
      err_msgs <- c(err_msgs, "Invalid starting location")
   }
   rasters <- rasters[!skipped]
   
-  
-  
  
-  #####
-  if (length(target_species > 1)) {
-     # combine into one here
-     
-     # combined <-  [sum of rasters in "rasters" (list)]
-     
-  } else {
-     
-     combined <- rasters[[1]]
+  # If multiple species combine by summing 
+  combined <- rasters[[1]]
+  if (length(target_species) > 1) {
+     for(i in 2:length(target_species)) {
+        combined <- combined + rasters[[i]]
+     }
   }
 
+   
+  tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
+  tiff_path <- file.path(out_path,tiff_file)
+  tiff_bucket_path <- paste0(s3_flow_base, tiff_file)
   
-  # write combined to geotiff here
-  
-  # Path:
-  # "<out_path>/<flow_type>_<taxa>.tif
-  # e.g.:  /inflow_total.tif
-  
-  
-  ######
+  terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
   
   
-  
-  
-  
-  ## EBP: stopped revisions here 2025-07-10
-  # Need to :
-  
-  # Reproject and crop
-  # write pngs
-  #   - loop through weeks writing each one out with existing function
-  # Path:
-  # "<out_path>/<flow_type>_<taxa>_<week>.png
-  # e.g.:  /inflow_total_1.tif
-  
-  
-  # Write json symbology file
-  # Copy to S3 bucket
-  # Return json list
-
-  
+  # Convert to web mercator and crop
   web_raster <- combined |> 
      terra::project(ai_app_crs$input) |> 
      terra::crop(ai_app_extent)
   
-  
-  # Write out symbolized png files and synmbology file (json) 
+  #----------------------------------------------------------------------------#
+  # Write out symbolized png files and symbology file (json) 
   # Each week has a separate pair of files
+  #----------------------------------------------------------------------------#
+  
   pred_weeks <- lookup_timestep_sequence(bf, start = week, n = n, direction = direction)
   
   # File names (no path)
@@ -247,9 +222,8 @@ flow <- function(taxa, loc, n, week = 0, date, direction = "forward") {
 
   # Copy Files to S3
   s3 <- paws::s3()
-  local_paths  <- c(png_path, symbology_paths)
-  bucket_paths <- c(png_bucket_paths, symbology_bucket_paths) # e.g.  "flow/2025-07-14_14-02-12_742/outflow_total_15.png"
-
+  local_paths  <- c(png_path, symbology_paths, tiff_path)
+  bucket_paths <- c(png_bucket_paths, symbology_bucket_paths, tiff_bucket_path)
   for(i in seq_along(local_paths)) { 
      s3$put_object(Bucket = s3_bucket_name,
                    Key = bucket_paths[i],
@@ -257,7 +231,7 @@ flow <- function(taxa, loc, n, week = 0, date, direction = "forward") {
   }
   
 
-  # Assemble return information:
+  # Assemble return list:
   result <- vector(mode = "list", length = n + 1)
   for (i in seq_along(pred_weeks)) {
      result[[i]] <- list(
