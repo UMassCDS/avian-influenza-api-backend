@@ -38,9 +38,13 @@ if(!all(species$species %in% index$species_code)) {
    stop("Expected BirdFlow models:", paste(miss, collapse = ", "), " are missing from the model collection." )
 }
 
-models <- new.env()
-for (sp in species$species) {
-   models[[sp]] <- load_model(model = sp)
+# This is slow so skipping if it's already done - useful when developing to 
+# avoid having to wait to reload. 
+if(!exists("models") || !is.environment(models) || !all(species$species %in% names(models))) {
+   models <- new.env()
+   for (sp in species$species) {
+      models[[sp]] <- load_model(model = sp)
+   }
 }
 
 # Define extent of exported data (ai_app_extent)
