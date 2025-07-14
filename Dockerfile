@@ -1,8 +1,22 @@
-# Use the official R image as a base
-FROM rocker/r-ver:4.1.0
+FROM rocker/geospatial:latest
 
-# Install necessary dependencies for Plumber
-RUN R -e "install.packages('plumber', 'jsonlite')"
+
+RUN apt-get update && apt-get install -y \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libgit2-dev \
+    libgdal-dev \
+    libproj-dev \
+    libgeos-dev \
+    libudunits2-dev \
+    cargo \
+    rustc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install necessary dependencies for Plumber and AWS S3
+RUN R -e "install.packages(c('plumber', 'aws.s3', 'remotes', 'Cairo', 'jsonlite'), repos='https://cloud.r-project.org')"
+RUN R -e "remotes::install_github('birdflow-science/BirdFlowR')"
 
 # Set working directory inside the container
 WORKDIR /app
