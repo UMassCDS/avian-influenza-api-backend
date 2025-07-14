@@ -4,3 +4,6 @@ avian-influenza-api-backend.code-workspace
 *.png
 *.tiff
 .Rproj.user
+
+.Rhistory
+.RData

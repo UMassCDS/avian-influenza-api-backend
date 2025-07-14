@@ -6,7 +6,7 @@
 
 # Using JSON so that the taxa file is identical to that used by front end:
 #  avianfluapp/src/assets/taxa.json
-species <- jsonlite::read_json("api/config/taxa.json") |> 
+species <- jsonlite::read_json("config/taxa.json") |> 
    do.call(rbind, args = _) |> 
    as.data.frame()
 names(species) <- c("species", "label")
@@ -21,7 +21,7 @@ species <- species[!species$species == "total", ]
 
 # File from  
 # https://github.com/birdflow-science/BirdFlowWork/tree/main/population/data/final
-pop <- read.csv("api/config/population.csv") |>
+pop <- read.csv("config/population.csv") |>
    dplyr::filter(species_code %in% species$species) |>
    dplyr::select(species = species_code, population = americas_pop)
 
@@ -38,9 +38,13 @@ if(!all(species$species %in% index$species_code)) {
    stop("Expected BirdFlow models:", paste(miss, collapse = ", "), " are missing from the model collection." )
 }
 
-models <- new.env()
-for (sp in species$species) {
-   models[[sp]] <- load_model(model = sp)
+# This is slow so skipping if it's already done - useful when developing to 
+# avoid having to wait to reload. 
+if(!exists("models") || !is.environment(models) || !all(species$species %in% names(models))) {
+   models <- new.env()
+   for (sp in species$species) {
+      models[[sp]] <- load_model(model = sp)
+   }
 }
 
 # Define extent of exported data (ai_app_extent)
@@ -53,6 +57,9 @@ web_corners <- sf::st_transform(csf, ai_app_crs)
 ai_app_extent <- terra::ext(web_corners)
 rm(corners, csf, web_corners)
 
+s3_bucket_name <- "avianinfluenza"
+s3_flow_url <- "https://avianinfluenza.s3.us-east-2.amazonaws.com/flow/"
+s3_flow_base <- "flow/"
 
 # Define local cache for temporary output images
 # Will then be copied to AWS
@@ -62,7 +69,7 @@ if(!file.exists(local_cache))
 
 ## Create flow colors file -- might change later
 # ebirdst::ebirdst_palettes(n = 256, type = "weekly") |> 
-#   col2rgb() |> t() |> saveRDS(file = "api/config/flow_cols.Rds")
+#   col2rgb() |> t() |> saveRDS(file = "config/flow_cols.Rds")
 
 # Load flow colors
-flow_colors <- readRDS("api/config/flow_cols.Rds")
+flow_colors <- readRDS("config/flow_cols.Rds")
