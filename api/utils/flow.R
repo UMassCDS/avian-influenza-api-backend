@@ -35,16 +35,34 @@ if(FALSE) {
 
 
 
-#-------------------------------------------------------------------------------
-
-#* @param week The starting week number
-#* @param taxa Species to include
-#* @param lat Latitude
-#* @param lon Longitude
-#* @param n Number of weeks to predict out.
-#* @get /flow
-# Sample: http://0.0.0.0:8000/flow?date=2022-02-02&taxa=buwtea&n=5&lat=30&lon=-85&direction=forward
-flow <- function(taxa, loc, n, week = 0, date, direction = "forward") {
+#' Implement inflow and outfow
+#' 
+#' This function is the heart of the inflow and outflow api and does all 
+#' the work. It is wrapped by both of those endpoints
+#'
+#' @param taxa a taxa.  Should be either "total" (sum across all species) or 
+#' one of the species listed in config/taxa.json 
+#' @param loc One or more locations as a scalar character each location should
+#' be latitude and longitude separated by a comma, multiple locations are separated by 
+#' a semicolon  e.g. "42,-72"   or "42,-72;43.4,-72.7"
+#' @param n The number of weeks to project forward (note output will include
+#' the initial week so will have n + 1 images)
+#' @param week The week number to start at.
+#' @param direction Which direction to project in "backward" for inflow or 
+#' "forward" for outflow"
+#' @returns A list with components:
+#' 
+#' `start` a list with:  
+#'    `week`  as input
+#'    `taxa`, as input
+#'    `loc`,  as input
+#'    `type` - "inflow" or "outflow"
+#' `status` either: "success", "error"
+#' `result` a list of information about the images each item includes
+#'    `week`
+#'    `url`  
+#'    `legend` 
+flow <- function(taxa, loc, n, week = 0,direction = "forward") {
 
   # Convert location into lat,lon data frame   
   lat_lon  <- strsplit(loc, ";") |> 
@@ -237,18 +255,20 @@ flow <- function(taxa, loc, n, week = 0, date, direction = "forward") {
      result[[i]] <- list(
         week = pred_weeks[i],
         url = png_urls[i],
-        legend = symbology_urls[i]
+        legend = symbology_urls[i],
+        type = flow_type
      )
   }
   
-  list(
+  return(
+     list(
      start = list(
         week = week,
         taxa = taxa,
-        location = loc
+        loc = loc
      ),
      status = "success",
-     result = result
+     result = result)
   )
   
 }
