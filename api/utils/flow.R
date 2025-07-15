@@ -186,12 +186,12 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
      return(format_error("Invalid starting location",  "outside mask"))
   }
   rasters <- rasters[!skipped]
+  used_species <- target_species[!skipped]
   
- 
   # If multiple species combine by summing 
   combined <- rasters[[1]]
-  if (length(target_species) > 1) {
-     for(i in 2:length(target_species)) {
+  if (length(rasters) > 1) {
+     for(i in 2:length(rasters)) {
         combined <- combined + rasters[[i]]
      }
   }
@@ -200,9 +200,7 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
   tiff_path <- file.path(out_path,tiff_file)
   tiff_bucket_path <- paste0(s3_flow_base, tiff_file)
-  
   terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
-  
   
   # Convert to web mercator and crop
   web_raster <- combined |> 
@@ -213,6 +211,8 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   # Write out symbolized png files and symbology file (json) 
   # Each week has a separate pair of files
   #----------------------------------------------------------------------------#
+  
+  # Set paths
   
   pred_weeks <- lookup_timestep_sequence(bf, start = week, n = n, direction = direction)
   
@@ -232,17 +232,17 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   png_bucket_paths <- paste0(s3_flow_base, unique_id, "/", png_files)
   symbology_bucket_paths <- paste0(s3_flow_base, unique_id, "/", symbology_files)
   
+  
+  # Write color symbolized png files and JSON symbology
   for(i in seq_along(pred_weeks)){
      week <- pred_weeks[i]
      week_raster <- web_raster[[i]]
      max_val <- terra::minmax(week_raster)[2]
      symbolize_raster_data(png = png_paths[i], col_palette = flow_colors,
                            rast = week_raster, max_value = max_val)
-     
      save_json_palette(symbology_paths[i], max = max_val, col_matrix = flow_colors)
   }
   
-
   # Copy Files to S3
   s3 <- paws::s3()
   local_paths  <- c(png_path, symbology_paths, tiff_path)
@@ -254,7 +254,7 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   }
   
 
-  # Assemble return list:
+  # Assemble and return list
   result <- vector(mode = "list", length = n + 1)
   for (i in seq_along(pred_weeks)) {
      result[[i]] <- list(
@@ -264,7 +264,6 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
         type = flow_type
      )
   }
-  
   return(
      list(
      start = list(

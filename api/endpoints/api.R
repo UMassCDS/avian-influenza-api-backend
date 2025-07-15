@@ -4,7 +4,7 @@
 #* @param week
 #* @param taxa
 #* @param n
-function(loc = NULL, week = 10, taxa = "total", n = 20) {
+function(loc="43,-72", week = 10, taxa = "total", n = 20) {
    # See flow for documentation of arguments
    flow(loc = loc, week = week, taxa = taxa, n = n, direction = "backward")
 }
@@ -15,7 +15,7 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
 #* @param week
 #* @param taxa
 #* @param n
-function(loc = NULL, week = 10, taxa = "total", n = 20) {
+function(loc, week = 10, taxa = "total", n = 20) {
    # See flow for documentation of arguments
    flow(loc = loc, week = week, taxa = taxa, n = n, direction = "forward")
 }
