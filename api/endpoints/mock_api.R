@@ -1,4 +1,4 @@
-#* @get /mock_inflow
+#* @get /inflow
 #* @param loc
 #* @param week
 #* @param taxa
@@ -43,7 +43,7 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
   )
 }
 
-#* @get /mock_outflow
+#* @get /outflow
 #* @param loc
 #* @param week
 #* @param taxa
