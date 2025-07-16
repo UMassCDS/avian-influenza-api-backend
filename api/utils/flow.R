@@ -3,7 +3,11 @@ if(FALSE) {
    # Running code here allows running function body code outside of the
    # function definition (line by line)
    
+   
    ## Setup - duplicates loading done in entrypoint.R
+   # Change the working directory to "api" before sourcing so relative paths in 
+   # the other files are correct
+   
    
    # Load required libraries
    library(BirdFlowR)
@@ -13,14 +17,14 @@ if(FALSE) {
 
    # Load globals and helpers
    original_wd <- getwd()
-   setwd("api")
+   if(!grepl("api$", getwd()))
+      setwd("api")
    source("config/globals.R")
    source("utils/helpers.R")
    source("utils/symbolize_raster_data.R")
    source("utils/save_json_palette.R")
    source("utils/range_rescale.R")
    setwd(original_wd)
-   
 
    # Set example arguments values as R objects 
    taxa <- "mallar3"
@@ -199,7 +203,8 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   # Write multi-band tiff with data
   tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
   tiff_path <- file.path(out_path,tiff_file)
-  tiff_bucket_path <- paste0(s3_flow_base, tiff_file)
+
+  tiff_bucket_path <- paste0(s3_flow_path, tiff_file)
   terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
   
   # Convert to web mercator and crop
@@ -226,11 +231,11 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
 
   # Urls
   png_urls <- paste0(s3_flow_url, unique_id, "/",  png_files) 
-  symbology_urls <- paste0(s3_base_url,unique_id, "/", symbology_files)
+  symbology_urls <- paste0(s3_flow_url,unique_id, "/", symbology_files)
   
   # bucket paths
-  png_bucket_paths <- paste0(s3_flow_base, unique_id, "/", png_files)
-  symbology_bucket_paths <- paste0(s3_flow_base, unique_id, "/", symbology_files)
+  png_bucket_paths <- paste0(s3_flow_path, unique_id, "/", png_files)
+  symbology_bucket_paths <- paste0(s3_flow_path, unique_id, "/", symbology_files)
   
   
   # Write color symbolized png files and JSON symbology
@@ -244,17 +249,25 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   }
   
   # Copy Files to S3
-  s3 <- paws::s3()
-  local_paths  <- c(png_path, symbology_paths, tiff_path)
-  bucket_paths <- c(png_bucket_paths, symbology_bucket_paths, tiff_bucket_path)
-  for(i in seq_along(local_paths)) { 
-     s3$put_object(Bucket = s3_bucket_name,
-                   Key = bucket_paths[i],
-                   Body = readBin(local_paths[i], "raw", file.info(local_paths[i])$size))
+  a <- tryCatch(error = identity, expr = {
+     s3 <- paws::s3()
+     local_paths  <- c(png_paths, symbology_paths, tiff_path)
+     bucket_paths <- c(png_bucket_paths, symbology_bucket_paths, tiff_bucket_path)
+     for(i in seq_along(local_paths)) { 
+        s3$put_object(Bucket = s3_bucket_name,
+                      Key = bucket_paths[i],
+                      Body = readBin(local_paths[i], "raw", file.info(local_paths[i])$size))
+     }
+  })
+  if(inherits(a, "error")) {
+     if(grepl("No compatible credentials provided.", a$message)) { 
+        return(format_error("Failed to upload to S3. No compatible credentials provided")) 
+     } else {
+        return(format_error("Failed to upload to S3")) 
+     }
   }
   
-
-  # Assemble and return list
+  # Assemble return list:
   result <- vector(mode = "list", length = n + 1)
   for (i in seq_along(pred_weeks)) {
      result[[i]] <- list(
