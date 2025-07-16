@@ -57,9 +57,11 @@ web_corners <- sf::st_transform(csf, ai_app_crs)
 ai_app_extent <- terra::ext(web_corners)
 rm(corners, csf, web_corners)
 
+# Configure S3 bucket, its url and the path within it used for flow output
 s3_bucket_name <- "avianinfluenza"
+s3_flow_path <- "flow/"
 s3_flow_url <- "https://avianinfluenza.s3.us-east-2.amazonaws.com/flow/"
-s3_flow_base <- "flow/"
+
 
 # Define local cache for temporary output images
 # Will then be copied to AWS
