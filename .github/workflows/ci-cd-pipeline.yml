@@ -68,5 +68,10 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "docker run -d -p 8000:8000 --name avian-flu-api umasscds/avian-flu-infra:latest"
 
+      # Reload Nginx to refresh proxy
+      - name: Reload Nginx
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo systemctl reload nginx"
+
       - name: Report Deployment Success
         run: echo "Successfully deployed the latest code to EC2!"
