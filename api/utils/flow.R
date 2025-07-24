@@ -82,7 +82,11 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
       
    }
    
+   log_progress <- function(msg) {
+     cat(sprintf("[%s] %s\n", Sys.time(), msg), file = "/tmp/flow_debug.log", append = TRUE)
+   }
    
+  log_progress("Starting flow function")
   # Convert location into lat,lon data frame   
   lat_lon  <- strsplit(loc, ";") |> 
      unlist() |>
@@ -165,6 +169,7 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
          start_distr <- start_distr / sum(start_distr)
      }
 
+     log_progress(paste("Starting prediction for species:", sp, "week:", week))
      pred <- predict(bf, 
                      start_distr, 
                      start = week, 
@@ -200,12 +205,14 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
      }
   }
 
+  log_progress("Before writing TIFF")
   # Write multi-band tiff with data
   tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
   tiff_path <- file.path(out_path,tiff_file)
 
   tiff_bucket_path <- paste0(s3_flow_path, tiff_file)
   terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
+  log_progress("After writing TIFF")
   
   # Convert to web mercator and crop
   web_raster <- combined |> 
@@ -277,6 +284,7 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
         type = flow_type
      )
   }
+  log_progress("Flow function complete")
   return(
      list(
      start = list(
