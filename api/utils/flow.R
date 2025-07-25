@@ -121,16 +121,14 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
      flow_type <- "inflow"
   }
   
-  # Set unique ID and output directory for this API call
+  # Set unique ID and output directory for this API call (RAM disk)
   unique_id <- Sys.time() |> 
      format(format = "%Y-%m-%d_%H-%M-%S")  |>
-  paste0("_", round(runif(1, 0, 1000)))
-
-  
-  out_path <- file.path(local_cache, unique_id) # for this API call
-  dir.create(out_path)  
+     paste0("_", round(runif(1, 0, 1000)))
+  out_path <- file.path("/dev/shm", unique_id)
+  dir.create(out_path, recursive = TRUE)
   if(!file.exists(out_path))
-     return(format_error("Could not create output directory"))
+     return(format_error("Could not create output directory in RAM (/dev/shm)"))
   
   # Define list of target species
   # Will either be a single species or a vector of all
@@ -206,13 +204,18 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   }
 
   log_progress("Before writing TIFF")
-  # Write multi-band tiff with data
-  tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
-  tiff_path <- file.path(out_path,tiff_file)
-
+  tiff_file <- paste0(flow_type, "_", taxa, ".tif")
+  tiff_path <- file.path(out_path, tiff_file)
   tiff_bucket_path <- paste0(s3_flow_path, tiff_file)
   terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
   log_progress("After writing TIFF")
+  
+  # Upload TIFF to S3 and delete local file
+  s3 <- paws::s3()
+  s3$put_object(Bucket = s3_bucket_name,
+                Key = tiff_bucket_path,
+                Body = readBin(tiff_path, "raw", file.info(tiff_path)$size))
+  file.remove(tiff_path)
   
   # Convert to web mercator and crop
   web_raster <- combined |> 
@@ -225,27 +228,17 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   #----------------------------------------------------------------------------#
   
   # Set paths
-  
   pred_weeks <- lookup_timestep_sequence(bf, start = week, n = n, direction = direction)
-  
-  # File names (no path)
   png_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".png") 
   symbology_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".json") 
-  
-  # Local paths
-  png_paths <-   file.path(out_path, png_files)  # local path
-  symbology_paths <- file.path(out_path, symbology_files) # local paths
-
-  # Urls
+  png_paths <- file.path(out_path, png_files)
+  symbology_paths <- file.path(out_path, symbology_files)
   png_urls <- paste0(s3_flow_url, unique_id, "/",  png_files) 
-  symbology_urls <- paste0(s3_flow_url,unique_id, "/", symbology_files)
-  
-  # bucket paths
+  symbology_urls <- paste0(s3_flow_url, unique_id, "/", symbology_files)
   png_bucket_paths <- paste0(s3_flow_path, unique_id, "/", png_files)
   symbology_bucket_paths <- paste0(s3_flow_path, unique_id, "/", symbology_files)
-  
-  
-  # Write color symbolized png files and JSON symbology
+
+  # Write, upload, and delete PNG/JSON files one by one
   for(i in seq_along(pred_weeks)){
      week <- pred_weeks[i]
      week_raster <- web_raster[[i]]
@@ -253,27 +246,22 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
      symbolize_raster_data(png = png_paths[i], col_palette = flow_colors,
                            rast = week_raster, max_value = max_val)
      save_json_palette(symbology_paths[i], max = max_val, col_matrix = flow_colors)
+
+     # Upload PNG and JSON to S3 and delete local files
+     s3$put_object(Bucket = s3_bucket_name,
+                   Key = png_bucket_paths[i],
+                   Body = readBin(png_paths[i], "raw", file.info(png_paths[i])$size))
+     file.remove(png_paths[i])
+
+     s3$put_object(Bucket = s3_bucket_name,
+                   Key = symbology_bucket_paths[i],
+                   Body = readBin(symbology_paths[i], "raw", file.info(symbology_paths[i])$size))
+     file.remove(symbology_paths[i])
   }
-  
-  # Copy Files to S3
-  a <- tryCatch(error = identity, expr = {
-     s3 <- paws::s3()
-     local_paths  <- c(png_paths, symbology_paths, tiff_path)
-     bucket_paths <- c(png_bucket_paths, symbology_bucket_paths, tiff_bucket_path)
-     for(i in seq_along(local_paths)) { 
-        s3$put_object(Bucket = s3_bucket_name,
-                      Key = bucket_paths[i],
-                      Body = readBin(local_paths[i], "raw", file.info(local_paths[i])$size))
-     }
-  })
-  if(inherits(a, "error")) {
-     if(grepl("No compatible credentials provided.", a$message)) { 
-        return(format_error("Failed to upload to S3. No compatible credentials provided")) 
-     } else {
-        return(format_error("Failed to upload to S3")) 
-     }
-  }
-  
+
+  # Clean up RAM disk directory
+  unlink(out_path, recursive = TRUE)
+
   # Assemble return list:
   result <- vector(mode = "list", length = n + 1)
   for (i in seq_along(pred_weeks)) {
