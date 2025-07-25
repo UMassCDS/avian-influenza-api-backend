@@ -273,6 +273,11 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
      )
   }
   log_progress("Flow function complete")
+
+  # Memory cleanup
+  rm(rasters, combined, web_raster, week_raster)
+  gc()
+
   return(
      list(
      start = list(
