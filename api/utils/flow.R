@@ -14,6 +14,7 @@ if(FALSE) {
    library(paws)
    library(jsonlite)
    library(terra)
+   library(digest)
 
    # Load globals and helpers
    original_wd <- getwd()
@@ -122,9 +123,15 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   }
   
   # Set unique ID and output directory for this API call (RAM disk)
-  unique_id <- Sys.time() |> 
-     format(format = "%Y-%m-%d_%H-%M-%S")  |>
-     paste0("_", round(runif(1, 0, 1000)))
+  raw_lat <- paste(lat_lon$lat, collapse = "_")
+  raw_lon <- paste(lat_lon$lon, collapse = "_")
+  param_string <- paste(
+    raw_lat,
+    raw_lon,
+    week, taxa, direction, flow_type, n,
+    sep = "_"
+  )
+  unique_id <- digest(param_string, algo = "md5")
   out_path <- file.path("/dev/shm", unique_id)
   dir.create(out_path, recursive = TRUE)
   if(!file.exists(out_path))
@@ -204,7 +211,7 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   }
 
   log_progress("Before writing TIFF")
-  tiff_file <- paste0(flow_type, "_", taxa, ".tif")
+  tiff_file <- paste0(flow_type, "_", unique_id, ".tif")
   tiff_path <- file.path(out_path, tiff_file)
   tiff_bucket_path <- paste0(s3_flow_path, tiff_file)
   terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
@@ -229,8 +236,8 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
   
   # Set paths
   pred_weeks <- lookup_timestep_sequence(bf, start = week, n = n, direction = direction)
-  png_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".png") 
-  symbology_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".json") 
+  png_files <- paste0(flow_type, "_", unique_id, "_", pred_weeks, ".png") 
+  symbology_files <- paste0(flow_type, "_", unique_id, "_", pred_weeks, ".json") 
   png_paths <- file.path(out_path, png_files)
   symbology_paths <- file.path(out_path, symbology_files)
   png_urls <- paste0(s3_flow_url, unique_id, "/",  png_files) 
@@ -257,6 +264,40 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
                    Key = symbology_bucket_paths[i],
                    Body = readBin(symbology_paths[i], "raw", file.info(symbology_paths[i])$size))
      file.remove(symbology_paths[i])
+  }
+
+  # S3 cache check
+  all_exist <- TRUE
+  tryCatch({
+    s3$head_object(Bucket = s3_bucket_name, Key = tiff_bucket_path)
+  }, error = function(e) { all_exist <<- FALSE })
+  for (k in c(png_bucket_paths, symbology_bucket_paths)) {
+    tryCatch({
+      s3$head_object(Bucket = s3_bucket_name, Key = k)
+    }, error = function(e) { all_exist <<- FALSE })
+  }
+  if (all_exist) {
+    result <- vector("list", length = n + 1)
+    for (i in seq_along(pred_weeks)) {
+      result[[i]] <- list(
+        week = pred_weeks[i],
+        url = png_urls[i],
+        legend = symbology_urls[i],
+        type = flow_type
+      )
+    }
+    log_progress("Returned cached result from S3")
+    return(
+      list(
+        start = list(
+          week = week,
+          taxa = taxa,
+          loc = loc
+        ),
+        status = "success",
+        result = result
+      )
+    )
   }
 
   # Clean up RAM disk directory
