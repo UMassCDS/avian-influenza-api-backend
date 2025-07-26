@@ -41,6 +41,8 @@ if(FALSE) {
    loc <- paste0(lat, ",", lon)
 }
 
+invalidate_cache <- TRUE  # Set to TRUE to force cache invalidation
+
 
 
 #' Implement inflow and outfow
@@ -163,7 +165,7 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
        s3$head_object(Bucket = s3_bucket_name, Key = k)
      }, error = function(e) { all_exist <<- FALSE })
    }
-   if (all_exist) {
+   if (all_exist && !invalidate_cache) {
      result <- vector("list", length = n + 1)
      for (i in seq_along(pred_weeks)) {
        result[[i]] <- list(
