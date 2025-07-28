@@ -147,9 +147,19 @@ flow <- function( loc, week, taxa, n, direction = "forward") {
      # Local copy of BirdFlow model  
      bf <- models[[sp]]
      
-     # Initial distribution
-     xy <- latlon_to_xy(lat_lon$lat, lat_lon[, 2],  bf = bf) 
-     
+     # Snap lat/lon to cell center
+     xy <- latlon_to_xy(lat_lon$lat, lat_lon$lon, bf = bf)
+     col <- x_to_col(xy$x, bf = bf)
+     row <- y_to_row(xy$y, bf = bf)
+     x <- col_to_x(col, bf = bf)
+     y <- row_to_y(row, bf = bf)
+     snapped_latlon <- xy_to_latlon(x, y, bf = bf)
+     snapped_latlon$lat <- round(snapped_latlon$lat, 2)
+     snapped_latlon$lon <- round(snapped_latlon$lon, 2)
+     lat_lon <- snapped_latlon
+
+     # Re-compute snapped xy
+     xy <- latlon_to_xy(lat_lon$lat, lat_lon$lon, bf = bf)
      
      # Check for valid starting location(s) 
      # skip species without
