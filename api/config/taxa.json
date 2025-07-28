@@ -1,0 +1,42 @@
+[
+  {
+    "value": "total",
+    "label": "Total"
+  },
+  {
+    "value": "mallar3",
+    "label": "Mallard"
+  },
+  {
+    "value": "ambduc",
+    "label": "American Black Duck"
+  },
+  {
+    "value": "norpin",
+    "label": "Northern Pintail"
+  },
+  {
+    "value": "norsho",
+    "label": "Northern Shoveler"
+  },
+  {
+    "value": "gnwtea",
+    "label": "Green-winged Teal"
+  },
+  {
+    "value": "buwtea",
+    "label": "Blue-winged Teal"
+  },
+  {
+    "value": "amewig",
+    "label": "American Wigeon"
+  },
+  {
+    "value": "gadwal",
+    "label": "Gadwall"
+  },
+  {
+    "value": "wooduc",
+    "label": "Wood Duck"
+  }
+]

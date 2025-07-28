@@ -57,7 +57,8 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
       location = locations
     ),
     status = unbox("success"),
-    result = result
+    result = result,
+    geotiff = unbox(sprintf("%s%s/%s/flow_projection.tif", baseUrl, abundanceName, taxa_list[taxaIdx]))
   )
 }
 
@@ -118,6 +119,7 @@ function(loc = NULL, week = 10, taxa = "total", n = 20) {
       location = locations
     ),
     status = unbox("success"),
-    result = result
+    result = result,
+    geotiff = unbox(sprintf("%s%s/%s/flow_projection.tif", baseUrl, abundanceName, taxa_list[taxaIdx]))
   )
 }
