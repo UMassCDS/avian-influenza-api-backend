@@ -80,7 +80,7 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
   }
 
   log_progress <- function(msg) {
-    cat(sprintf("[%s] %s\n", Sys.time(), msg), file = "/tmp/flow_debug.log", append = TRUE)
+    cat(sprintf("[%s] %s\n", Sys.time(), msg), file = "./flow_debug.log", append = TRUE)
   }
 
   log_progress("Starting flow function")
@@ -172,14 +172,17 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
   skipped <- rep(FALSE, length(target_species))
   rasters <- vector("list", length(target_species))
 
+  combined <- NULL
+  any_valid <- FALSE
+
   for (i in seq_along(target_species)) {
     sp <- target_species[i]
     bf <- models[[sp]]
     valid <- is_location_valid(bf, timestep = week, x = xy$x, y = xy$y)
     if (!all(valid)) {
-      skipped[i] <- TRUE
       next
     }
+    any_valid <- TRUE
     start_distr <- as_distr(xy, bf)
     if (nrow(lat_lon) > 1) {
       start_distr <- apply(start_distr, 1, sum)
@@ -191,12 +194,15 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
     initial_population_distr <- get_distr(bf, which = week)
     start_proportion <- initial_population_distr[location_i] / 1
     abundance <- pred * species$population[species$species == sp] / prod(res(bf) / 1000) * start_proportion
-    rasters[[i]] <- rasterize_distr(abundance, bf = bf, format = "terra")
+    this_raster <- rasterize_distr(abundance, bf = bf, format = "terra")
+    if (is.null(combined)) {
+      combined <- this_raster
+    } else {
+      combined <- combined + this_raster
+    }
   }
 
-  if (all(skipped)) return(format_error("Invalid starting location", "outside mask"))
-  rasters <- rasters[!skipped]
-  combined <- Reduce(`+`, rasters)
+  if (!any_valid) return(format_error("Invalid starting location", "outside mask"))
 
   log_progress("Before writing TIFF")
   tiff_path <- file.path(out_path, paste0(flow_type, "_", taxa, ".tif"))
