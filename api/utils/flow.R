@@ -9,12 +9,6 @@ if(FALSE) {
    # the other files are correct
    
 
-   save_local_path <- "config/save_local.flag"
-  if (file.exists(save_local_path)) {
-    SAVE_LOCAL <- as.logical(readLines(save_local_path, warn = FALSE)[1])
-  } else {
-    SAVE_LOCAL <- FALSE
-  }
    # Load required libraries
    library(BirdFlowR)
    library(paws)
@@ -47,36 +41,17 @@ if(FALSE) {
    loc <- paste0(lat, ",", lon)
 }
 
+save_local_path <- "config/save_local.flag"
+if (file.exists(save_local_path)) {
+  SAVE_LOCAL <- as.logical(readLines(save_local_path, warn = FALSE)[1])
+} else {
+  SAVE_LOCAL <- FALSE
+}
 
-
-#' Implement inflow and outfow
+#' Implement inflow and outflow
 #' 
 #' This function is the heart of the inflow and outflow api and does all 
 #' the work. It is wrapped by both of those endpoints
-#'
-#' @param taxa a taxa.  Should be either "total" (sum across all species) or 
-#' one of the species listed in config/taxa.json 
-#' @param loc One or more locations as a scalar character each location should
-#' be latitude and longitude separated by a comma, multiple locations are separated by 
-#' a semicolon  e.g. "42,-72"   or "42,-72;43.4,-72.7"
-#' @param n The number of weeks to project forward (note output will include
-#' the initial week so will have n + 1 images)
-#' @param week The week number to start at.
-#' @param direction Which direction to project in "backward" for inflow or 
-#' "forward" for outflow"
-#' @returns A list with components:
-#' 
-#' `start` a list with:  
-#'    `week`  as input
-#'    `taxa`, as input
-#'    `loc`,  as input
-#'    `type` - "inflow" or "outflow"
-#' `status` either: "success", "error", "outside mask"
-#' `result` a list of information about the images each item includes
-#'    `week`
-#'    `url`  
-#'    `legend` 
-
 flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LOCAL) {
   format_error <- function(message, status = "error") {
     list(
@@ -152,7 +127,13 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
     tiff_exists <- object_exists(object = tiff_bucket_path, bucket = s3_bucket_name)
     if (!tiff_exists) cache_hit <- FALSE
   } else {
-    cache_hit <- FALSE # Always recompute for local mode
+    # Local cache: check if all files exist in localtmp
+    dir.create("localtmp", showWarnings = FALSE)
+    local_cache_prefix <- file.path("localtmp", gsub("/", "_", cache_prefix))
+    png_local_paths <- file.path(local_cache_prefix, png_files)
+    json_local_paths <- file.path(local_cache_prefix, symbology_files)
+    tiff_local_path <- file.path(local_cache_prefix, paste0(flow_type, "_", taxa, ".tif"))
+    cache_hit <- all(file.exists(c(png_local_paths, json_local_paths, tiff_local_path)))
   }
 
   if (cache_hit) {
@@ -160,26 +141,32 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
     for (i in seq_along(pred_weeks)) {
       result[[i]] <- list(
         week = pred_weeks[i],
-        url = png_urls[i],
-        legend = symbology_urls[i],
+        url = if (save_local) png_local_paths[i] else png_urls[i],
+        legend = if (save_local) json_local_paths[i] else symbology_urls[i],
         type = flow_type
       )
     }
-    log_progress("Returned cached result from S3")
+    log_progress(if (save_local) "Returned cached result from localtmp" else "Returned cached result from S3")
     return(
       list(
         start = list(week = week, taxa = taxa, loc = loc),
         status = "cached",
         result = result,
-        geotiff = paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")
+        geotiff = if (save_local) tiff_local_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")
       )
     )
   }
   # --- END CACHE CHECK BLOCK ---
 
   # Continue with prediction
-  out_path <- tempfile(pattern = "flow_", tmpdir = "/dev/shm")
-  dir.create(out_path, recursive = TRUE)
+  if (save_local) {
+    dir.create("localtmp", showWarnings = FALSE)
+    out_path <- file.path("localtmp", gsub("/", "_", cache_prefix))
+    dir.create(out_path, recursive = TRUE, showWarnings = FALSE)
+  } else {
+    out_path <- tempfile(pattern = "flow_", tmpdir = tempdir())
+    dir.create(out_path, recursive = TRUE)
+  }
 
   target_species <- if (taxa == "total") species$species else taxa
   skipped <- rep(FALSE, length(target_species))
