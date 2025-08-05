@@ -31,7 +31,8 @@ pr <- pr %>%
   pr_mount("/hello", plumb("endpoints/hello.R")) %>%
   pr_mount("/predict", plumb("endpoints/predict.R")) %>%
   pr_mount("/mock", plumb("endpoints/mock_api.R")) %>%
-  pr_mount("/api", plumb("endpoints/api.R"))
+  pr_mount("/api", plumb("endpoints/api.R")) %>%
+  pr_mount("/s3test", plumb("endpoints/s3test.R")) # <-- Add this line
    
 
 # Run the API
