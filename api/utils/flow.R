@@ -9,7 +9,7 @@ if(FALSE) {
    # the other files are correct
    
 
-   SAVE_LOCAL <- TRUE  # for debugging, save files locally instead of uploading to S3
+   SAVE_LOCAL <- FALSE  # for debugging, save files locally instead of uploading to S3
    
    # Load required libraries
    library(BirdFlowR)
