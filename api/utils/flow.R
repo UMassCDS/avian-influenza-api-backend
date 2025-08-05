@@ -163,7 +163,7 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
     out_path <- file.path("localtmp", gsub("/", "_", cache_prefix))
     dir.create(out_path, recursive = TRUE, showWarnings = FALSE)
   } else {
-    out_path <- tempfile(pattern = "flow_", tmpdir = tempdir())
+    out_path <- tempfile(pattern = "flow_", tmpdir = "/dev/shm")
     dir.create(out_path, recursive = TRUE)
   }
 
