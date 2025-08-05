@@ -220,26 +220,44 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
 
   # --- UPLOAD OR LOCAL SAVE ---
   if (!save_local) {
-    put_object(
-      file = tiff_path,
-      object = tiff_bucket_path,
-      bucket = s3_bucket_name
-    )
+    log_progress(paste("Uploading TIFF to S3:", tiff_path, "->", tiff_bucket_path))
+    tryCatch({
+      put_object(
+        file = tiff_path,
+        object = tiff_bucket_path,
+        bucket = s3_bucket_name
+      )
+      log_progress("TIFF upload successful.")
+    }, error = function(e) {
+      log_progress(paste("TIFF upload ERROR:", e$message))
+    })
     file.remove(tiff_path)
 
     for (i in seq_along(pred_weeks)) {
-      put_object(
-        file = png_paths[i],
-        object = png_bucket_paths[i],
-        bucket = s3_bucket_name
-      )
+      log_progress(paste("Uploading PNG to S3:", png_paths[i], "->", png_bucket_paths[i]))
+      tryCatch({
+        put_object(
+          file = png_paths[i],
+          object = png_bucket_paths[i],
+          bucket = s3_bucket_name
+        )
+        log_progress(paste("PNG upload successful:", png_bucket_paths[i]))
+      }, error = function(e) {
+        log_progress(paste("PNG upload ERROR:", e$message))
+      })
       file.remove(png_paths[i])
 
-      put_object(
-        file = symbology_paths[i],
-        object = symbology_bucket_paths[i],
-        bucket = s3_bucket_name
-      )
+      log_progress(paste("Uploading JSON to S3:", symbology_paths[i], "->", symbology_bucket_paths[i]))
+      tryCatch({
+        put_object(
+          file = symbology_paths[i],
+          object = symbology_bucket_paths[i],
+          bucket = s3_bucket_name
+        )
+        log_progress(paste("JSON upload successful:", symbology_bucket_paths[i]))
+      }, error = function(e) {
+        log_progress(paste("JSON upload ERROR:", e$message))
+      })
       file.remove(symbology_paths[i])
     }
     unlink(out_path, recursive = TRUE)
