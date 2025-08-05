@@ -9,8 +9,12 @@ if(FALSE) {
    # the other files are correct
    
 
-   SAVE_LOCAL <- FALSE  # for debugging, save files locally instead of uploading to S3
-   
+   save_local_path <- "config/save_local.flag"
+  if (file.exists(save_local_path)) {
+    SAVE_LOCAL <- as.logical(readLines(save_local_path, warn = FALSE)[1])
+  } else {
+    SAVE_LOCAL <- FALSE
+  }
    # Load required libraries
    library(BirdFlowR)
    library(paws)
