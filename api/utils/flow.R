@@ -11,7 +11,6 @@ if(FALSE) {
 
    # Load required libraries
    library(BirdFlowR)
-   library(paws)
    library(jsonlite)
    library(terra)
    library(aws.s3)
