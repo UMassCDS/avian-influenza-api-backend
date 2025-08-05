@@ -1,9 +1,6 @@
 #' @post /s3test
 function() {
   library(aws.s3)
-  library(aws.signature)
-  use_instance_metadata()
-  Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
   options("aws.signature.debug" = TRUE)
   
   test_file <- tempfile(fileext = ".txt")
