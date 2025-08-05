@@ -1,3 +1,9 @@
 *.pem
 avian-influenza-api-backend.code-workspace
-ambduc_plot.png
+*.tif
+*.png
+*.tiff
+.Rproj.user
+
+.Rhistory
+.RData

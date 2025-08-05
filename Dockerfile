@@ -1,5 +1,6 @@
 FROM rocker/geospatial:latest
 
+
 RUN apt-get update && apt-get install -y \
     libcurl4-openssl-dev \
     libssl-dev \
@@ -14,7 +15,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install necessary dependencies for Plumber and AWS S3
-RUN R -e "install.packages(c('plumber', 'aws.s3', 'remotes', 'Cairo', 'jsonlite'), repos='https://cloud.r-project.org')"
+RUN R -e "install.packages(c('plumber', 'aws.s3', 'remotes', 'Cairo', 'jsonlite', 'paws'), repos='https://cloud.r-project.org')"
+
 RUN R -e "remotes::install_github('birdflow-science/BirdFlowR')"
 
 # Set working directory inside the container
