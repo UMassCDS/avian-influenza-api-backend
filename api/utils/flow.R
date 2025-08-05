@@ -69,231 +69,195 @@ if(FALSE) {
 #'    `week`
 #'    `url`  
 #'    `legend` 
-flow <- function( loc, week, taxa, n, direction = "forward") {
 
-   format_error <- function(message, status = "error") {
-     list( start = list(
-        week = week,
-        taxa = taxa,
-        loc = loc
-     ),
-     status = status, 
-     message = message)
-      
-   }
-   
-   log_progress <- function(msg) {
-     cat(sprintf("[%s] %s\n", Sys.time(), msg), file = "/tmp/flow_debug.log", append = TRUE)
-   }
-   
+flow <- function(loc, week, taxa, n, direction = "forward") {
+  format_error <- function(message, status = "error") {
+    list(
+      start = list(week = week, taxa = taxa, loc = loc),
+      status = status,
+      message = message
+    )
+  }
+
+  log_progress <- function(msg) {
+    cat(sprintf("[%s] %s\n", Sys.time(), msg), file = "./flow_debug.log", append = TRUE)
+  }
+
   log_progress("Starting flow function")
-  # Convert location into lat,lon data frame   
-  lat_lon  <- strsplit(loc, ";") |> 
-     unlist() |>
-     strsplit(split = ",") |>
-     do.call(rbind, args = _) |> 
-     as.data.frame() 
-  for(i in seq_len(ncol(lat_lon)))
-     lat_lon[ , i] <- as.numeric(lat_lon[, i])
+
+  # Convert location to lat/lon dataframe
+  lat_lon <- strsplit(loc, ";") |>
+    unlist() |>
+    strsplit(split = ",") |>
+    do.call(rbind, args = _) |>
+    as.data.frame()
+  for (i in seq_len(ncol(lat_lon))) lat_lon[, i] <- as.numeric(lat_lon[, i])
   names(lat_lon) <- c("lat", "lon")
-  
- 
-  if(!taxa %in% (c(species$species, "total"))) {
-     return(format_error("invalid taxa"))
-  }
 
-     
-  if(!week %in% as.character(1:52)) 
-     return(format_error("invalid week"))
+  if (!taxa %in% c(species$species, "total")) return(format_error("invalid taxa"))
+  if (!week %in% as.character(1:52)) return(format_error("invalid week"))
+  if (!n %in% as.character(1:52)) return(format_error("invalid n"))
+  if (!direction %in% c("forward", "backward")) return(format_error("invalid direction"))
+
   week <- as.numeric(week)
-  
-  if(!n %in% as.character(1:52))
-     return(format_error("invalid n"))
   n <- as.numeric(n)
-   
-  if(!direction %in% c("forward", "backward")) 
-    return(format_error("invalid direction - should be forward or backward"))
- 
-  
-  if(direction == "forward") {
-     flow_type <- "outflow" 
-  } else {
-     flow_type <- "inflow"
-  }
-  
-  # Set unique ID and output directory for this API call
-  unique_id <- Sys.time() |> 
-     format(format = "%Y-%m-%d_%H-%M-%S")  |>
-  paste0("_", round(runif(1, 0, 1000)))
+  flow_type <- ifelse(direction == "forward", "outflow", "inflow")
 
-  
-  out_path <- file.path(local_cache, unique_id) # for this API call
-  dir.create(out_path)  
-  if(!file.exists(out_path))
-     return(format_error("Could not create output directory"))
-  
-  # Define list of target species
-  # Will either be a single species or a vector of all
-  target_species <- if(taxa == "total") {
-     target_species <- species$species
-  } else { 
-     target_species <- taxa
-  }
-  
-  # Create prediction rasters for all target species 
-  skipped <- rep(FALSE, length(target_species))
-  rasters <- vector(mode = "list", length(target_species))
-  for(i in seq_along(target_species)) {
-     sp <- target_species[i]
-     
-     # Local copy of BirdFlow model  
-     bf <- models[[sp]]
-     
-     # Initial distribution
-     xy <- latlon_to_xy(lat_lon$lat, lat_lon[, 2],  bf = bf) 
-     
-     
-     # Check for valid starting location(s) 
-     # skip species without
-     valid <- is_location_valid(bf, timestep = week, x = xy$x, y = xy$y)
-     if(!all(valid)){
-        skipped[i] <- TRUE
-        next
-     }
-     
-     start_distr <- as_distr(xy, bf, )
-     if(nrow(lat_lon) > 1) {
-        # If multiple xy  start distribution will contain multiple 
-        # one-hot distributions in a matrix
-         start_distr <- apply(start_distr, 1, sum)
-         start_distr <- start_distr / sum(start_distr)
-     }
+  # Snap lat/lon to cell center using the first model (all models use same grid)
+  bf <- models[[ifelse(taxa == "total", species$species[1], taxa)]]
+  xy <- latlon_to_xy(lat_lon$lat, lat_lon$lon, bf = bf)
+  col <- x_to_col(xy$x, bf = bf)
+  row <- y_to_row(xy$y, bf = bf)
+  x <- col_to_x(col, bf = bf)
+  y <- row_to_y(row, bf = bf)
+  snapped_latlon <- xy_to_latlon(x, y, bf = bf)
+  snapped_latlon$lat <- round(snapped_latlon$lat, 2)
+  snapped_latlon$lon <- round(snapped_latlon$lon, 2)
+  lat_lon <- snapped_latlon
 
-     log_progress(paste("Starting prediction for species:", sp, "week:", week))
-     pred <- predict(bf, 
-                     start_distr, 
-                     start = week, 
-                     n = n, 
-                     direction = direction)
-     
-     # Proportion of population in starting location
-     location_i <- xy_to_i(xy, bf = bf)
-     initial_population_distr <- get_distr(bf, which = week)
-     start_proportion <- initial_population_distr[location_i] / 1
-     
-     # Convert to Birds / sq km
-     abundance <- pred * species$population[species$species == sp] / 
-        prod(res(bf)/1000) * start_proportion
-    
-     r <- rasterize_distr(abundance, bf = bf, format = "terra")
-     
-     rasters[[i]] <- r
-  }
-  
-  # Drop any models that were skipped (due to invalid starting location & date)
-  if(all(skipped)) {
-     return(format_error("Invalid starting location",  "outside mask"))
-  }
-  rasters <- rasters[!skipped]
-  used_species <- target_species[!skipped]
-  
-  # If multiple species combine by summing 
-  combined <- rasters[[1]]
-  if (length(rasters) > 1) {
-     for(i in 2:length(rasters)) {
-        combined <- combined + rasters[[i]]
-     }
-  }
+  # Re-compute snapped xy for later use
+  xy <- latlon_to_xy(lat_lon$lat, lat_lon$lon, bf = bf)
 
-  log_progress("Before writing TIFF")
-  # Write multi-band tiff with data
-  tiff_file <-   paste0(flow_type, "_", taxa, ".tif")
-  tiff_path <- file.path(out_path,tiff_file)
-
-  tiff_bucket_path <- paste0(s3_flow_path, tiff_file)
-  terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
-  log_progress("After writing TIFF")
-  
-  # Convert to web mercator and crop
-  web_raster <- combined |> 
-     terra::project(ai_app_crs$input) |> 
-     terra::crop(ai_app_extent)
-  
-  #----------------------------------------------------------------------------#
-  # Write out symbolized png files and symbology file (json) 
-  # Each week has a separate pair of files
-  #----------------------------------------------------------------------------#
-  
-  # Set paths
-  
+  # Form file names and S3 keys using snapped lat/lon
+  snapped_lat <- paste(lat_lon$lat, collapse = "_")
+  snapped_lon <- paste(lat_lon$lon, collapse = "_")
+  cache_prefix <- paste0(direction, "/", taxa, "_", week, "_", snapped_lat, "_", snapped_lon, "/")
   pred_weeks <- lookup_timestep_sequence(bf, start = week, n = n, direction = direction)
-  
-  # File names (no path)
-  png_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".png") 
-  symbology_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".json") 
-  
-  # Local paths
-  png_paths <-   file.path(out_path, png_files)  # local path
-  symbology_paths <- file.path(out_path, symbology_files) # local paths
+  png_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".png")
+  symbology_files <- paste0(flow_type, "_", taxa, "_", pred_weeks, ".json")
+  png_bucket_paths <- paste0(s3_flow_path, cache_prefix, png_files)
+  symbology_bucket_paths <- paste0(s3_flow_path, cache_prefix, symbology_files)
+  png_urls <- paste0(s3_flow_url, cache_prefix, png_files)
+  symbology_urls <- paste0(s3_flow_url, cache_prefix, symbology_files)
 
-  # Urls
-  png_urls <- paste0(s3_flow_url, unique_id, "/",  png_files) 
-  symbology_urls <- paste0(s3_flow_url,unique_id, "/", symbology_files)
-  
-  # bucket paths
-  png_bucket_paths <- paste0(s3_flow_path, unique_id, "/", png_files)
-  symbology_bucket_paths <- paste0(s3_flow_path, unique_id, "/", symbology_files)
-  
-  
-  # Write color symbolized png files and JSON symbology
-  for(i in seq_along(pred_weeks)){
-     week <- pred_weeks[i]
-     week_raster <- web_raster[[i]]
-     max_val <- terra::minmax(week_raster)[2]
-     symbolize_raster_data(png = png_paths[i], col_palette = flow_colors,
-                           rast = week_raster, max_value = max_val)
-     save_json_palette(symbology_paths[i], max = max_val, col_matrix = flow_colors)
-  }
-  
-  # Copy Files to S3
-  a <- tryCatch(error = identity, expr = {
-     s3 <- paws::s3()
-     local_paths  <- c(png_paths, symbology_paths, tiff_path)
-     bucket_paths <- c(png_bucket_paths, symbology_bucket_paths, tiff_bucket_path)
-     for(i in seq_along(local_paths)) { 
-        s3$put_object(Bucket = s3_bucket_name,
-                      Key = bucket_paths[i],
-                      Body = readBin(local_paths[i], "raw", file.info(local_paths[i])$size))
-     }
-  })
-  if(inherits(a, "error")) {
-     if(grepl("No compatible credentials provided.", a$message)) { 
-        return(format_error("Failed to upload to S3. No compatible credentials provided")) 
-     } else {
-        return(format_error("Failed to upload to S3")) 
-     }
-  }
-  
-  # Assemble return list:
-  result <- vector(mode = "list", length = n + 1)
+  # --- CACHE CHECK BLOCK ---
+  s3 <- paws::s3()
+  cache_hit <- TRUE
   for (i in seq_along(pred_weeks)) {
-     result[[i]] <- list(
+    png_key <- png_bucket_paths[i]
+    json_key <- symbology_bucket_paths[i]
+    if (inherits(tryCatch(s3$head_object(Bucket = s3_bucket_name, Key = png_key), error = function(e) e), "error") ||
+        inherits(tryCatch(s3$head_object(Bucket = s3_bucket_name, Key = json_key), error = function(e) e), "error")) {
+      cache_hit <- FALSE
+      break
+    }
+  }
+
+  if (cache_hit) {
+    result <- vector("list", length = n + 1)
+    for (i in seq_along(pred_weeks)) {
+      result[[i]] <- list(
         week = pred_weeks[i],
         url = png_urls[i],
         legend = symbology_urls[i],
         type = flow_type
-     )
+      )
+    }
+    log_progress("Returned cached result from S3")
+    return(
+      list(
+        start = list(week = week, taxa = taxa, loc = loc),
+        status = "cached",
+        result = result
+      )
+    )
   }
+  # --- END CACHE CHECK BLOCK ---
+
+  # Continue with prediction
+  out_path <- tempfile(pattern = "flow_", tmpdir = "/dev/shm")
+  dir.create(out_path, recursive = TRUE)
+
+  target_species <- if (taxa == "total") species$species else taxa
+  skipped <- rep(FALSE, length(target_species))
+  rasters <- vector("list", length(target_species))
+
+  combined <- NULL
+  any_valid <- FALSE
+
+  for (i in seq_along(target_species)) {
+    sp <- target_species[i]
+    bf <- models[[sp]]
+    valid <- is_location_valid(bf, timestep = week, x = xy$x, y = xy$y)
+    if (!all(valid)) {
+      next
+    }
+    any_valid <- TRUE
+    start_distr <- as_distr(xy, bf)
+    if (nrow(lat_lon) > 1) {
+      start_distr <- apply(start_distr, 1, sum)
+      start_distr <- start_distr / sum(start_distr)
+    }
+    log_progress(paste("Starting prediction for", sp))
+    pred <- predict(bf, start_distr, start = week, n = n, direction = direction)
+    location_i <- xy_to_i(xy, bf = bf)
+    initial_population_distr <- get_distr(bf, which = week)
+    start_proportion <- initial_population_distr[location_i] / 1
+    abundance <- pred * species$population[species$species == sp] / prod(res(bf) / 1000) * start_proportion
+    this_raster <- rasterize_distr(abundance, bf = bf, format = "terra")
+    if (is.null(combined)) {
+      combined <- this_raster
+    } else {
+      combined <- combined + this_raster
+    }
+  }
+
+  if (!any_valid) return(format_error("Invalid starting location", "outside mask"))
+
+  log_progress("Before writing TIFF")
+  tiff_path <- file.path(out_path, paste0(flow_type, "_", taxa, ".tif"))
+  terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
+  tiff_bucket_path <- paste0(s3_flow_path, cache_prefix, flow_type, "_", taxa, ".tif")
+  s3$put_object(Bucket = s3_bucket_name, Key = tiff_bucket_path,
+                Body = readBin(tiff_path, "raw", file.info(tiff_path)$size))
+  file.remove(tiff_path)
+
+  web_raster <- combined |> terra::project(ai_app_crs$input) |> terra::crop(ai_app_extent)
+
+  png_paths <- file.path(out_path, png_files)
+  symbology_paths <- file.path(out_path, symbology_files)
+  for (i in seq_along(pred_weeks)) {
+    week_raster <- web_raster[[i]]
+    max_val <- terra::minmax(week_raster)[2]
+    symbolize_raster_data(png = png_paths[i], col_palette = flow_colors,
+                          rast = week_raster, max_value = max_val)
+    save_json_palette(symbology_paths[i], max = max_val, col_matrix = flow_colors)
+
+    s3$put_object(Bucket = s3_bucket_name,
+                  Key = png_bucket_paths[i],
+                  Body = readBin(png_paths[i], "raw", file.info(png_paths[i])$size))
+    file.remove(png_paths[i])
+
+    s3$put_object(Bucket = s3_bucket_name,
+                  Key = symbology_bucket_paths[i],
+                  Body = readBin(symbology_paths[i], "raw", file.info(symbology_paths[i])$size))
+    file.remove(symbology_paths[i])
+  }
+
+  unlink(out_path, recursive = TRUE)
+
+  # --- MEMORY CLEANUP ---
+  rm(rasters, combined, web_raster, week_raster, abundance, pred, start_distr, initial_population_distr)
+  gc()
+  # --- END MEMORY CLEANUP ---
+
+  result <- vector("list", length = n + 1)
+  for (i in seq_along(pred_weeks)) {
+    result[[i]] <- list(
+      week = pred_weeks[i],
+      url = png_urls[i],
+      legend = symbology_urls[i],
+      type = flow_type
+    )
+  }
+
   log_progress("Flow function complete")
   return(
-     list(
-     start = list(
-        week = week,
-        taxa = taxa,
-        loc = loc
-     ),
-     status = "success",
-     result = result)
+    list(
+      start = list(week = week, taxa = taxa, loc = loc),
+      status = "success",
+      result = result
+    )
   )
-  
 }
+
