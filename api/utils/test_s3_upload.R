@@ -5,7 +5,7 @@ library(aws.signature)
 use_instance_metadata()
 
 # Set your region (change if needed)
-Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
+# Sys.setenv("AWS_DEFAULT_REGION" = "us-east-2")
 
 # Enable debug logging for troubleshooting
 options("aws.signature.debug" = TRUE)
