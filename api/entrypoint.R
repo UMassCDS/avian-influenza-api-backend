@@ -1,8 +1,8 @@
 library(plumber)
 library(BirdFlowR)
 library(jsonlite)
-library(paws)
 library(terra)
+library(aws.s3)
 
 # Load globals and helpers
 source("config/globals.R")
