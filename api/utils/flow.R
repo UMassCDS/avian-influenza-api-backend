@@ -14,6 +14,7 @@ if(FALSE) {
    library(paws)
    library(jsonlite)
    library(terra)
+   library(aws.s3)
 
    # Load globals and helpers
    original_wd <- getwd()
@@ -129,19 +130,20 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
   symbology_bucket_paths <- paste0(s3_flow_path, cache_prefix, symbology_files)
   png_urls <- paste0(s3_flow_url, cache_prefix, png_files)
   symbology_urls <- paste0(s3_flow_url, cache_prefix, symbology_files)
+  tiff_bucket_path <- paste0(s3_flow_path, cache_prefix, flow_type, "_", taxa, ".tif")
 
   # --- CACHE CHECK BLOCK ---
-  s3 <- paws::s3()
   cache_hit <- TRUE
   for (i in seq_along(pred_weeks)) {
-    png_key <- png_bucket_paths[i]
-    json_key <- symbology_bucket_paths[i]
-    if (inherits(tryCatch(s3$head_object(Bucket = s3_bucket_name, Key = png_key), error = function(e) e), "error") ||
-        inherits(tryCatch(s3$head_object(Bucket = s3_bucket_name, Key = json_key), error = function(e) e), "error")) {
+    png_exists <- object_exists(object = png_bucket_paths[i], bucket = s3_bucket_name)
+    json_exists <- object_exists(object = symbology_bucket_paths[i], bucket = s3_bucket_name)
+    if (!png_exists || !json_exists) {
       cache_hit <- FALSE
       break
     }
   }
+  tiff_exists <- object_exists(object = tiff_bucket_path, bucket = s3_bucket_name)
+  if (!tiff_exists) cache_hit <- FALSE
 
   if (cache_hit) {
     result <- vector("list", length = n + 1)
@@ -158,7 +160,8 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
       list(
         start = list(week = week, taxa = taxa, loc = loc),
         status = "cached",
-        result = result
+        result = result,
+        geotiff = paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")
       )
     )
   }
@@ -170,7 +173,6 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
 
   target_species <- if (taxa == "total") species$species else taxa
   skipped <- rep(FALSE, length(target_species))
-  rasters <- vector("list", length(target_species))
 
   combined <- NULL
   any_valid <- FALSE
@@ -207,9 +209,12 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
   log_progress("Before writing TIFF")
   tiff_path <- file.path(out_path, paste0(flow_type, "_", taxa, ".tif"))
   terra::writeRaster(combined, tiff_path, overwrite = TRUE, filetype = 'GTiff')
-  tiff_bucket_path <- paste0(s3_flow_path, cache_prefix, flow_type, "_", taxa, ".tif")
-  s3$put_object(Bucket = s3_bucket_name, Key = tiff_bucket_path,
-                Body = readBin(tiff_path, "raw", file.info(tiff_path)$size))
+
+  put_object(
+    file = tiff_path,
+    object = tiff_bucket_path,
+    bucket = s3_bucket_name
+  )
   file.remove(tiff_path)
 
   web_raster <- combined |> terra::project(ai_app_crs$input) |> terra::crop(ai_app_extent)
@@ -223,21 +228,25 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
                           rast = week_raster, max_value = max_val)
     save_json_palette(symbology_paths[i], max = max_val, col_matrix = flow_colors)
 
-    s3$put_object(Bucket = s3_bucket_name,
-                  Key = png_bucket_paths[i],
-                  Body = readBin(png_paths[i], "raw", file.info(png_paths[i])$size))
+    put_object(
+      file = png_paths[i],
+      object = png_bucket_paths[i],
+      bucket = s3_bucket_name
+    )
     file.remove(png_paths[i])
 
-    s3$put_object(Bucket = s3_bucket_name,
-                  Key = symbology_bucket_paths[i],
-                  Body = readBin(symbology_paths[i], "raw", file.info(symbology_paths[i])$size))
+    put_object(
+      file = symbology_paths[i],
+      object = symbology_bucket_paths[i],
+      bucket = s3_bucket_name
+    )
     file.remove(symbology_paths[i])
   }
 
   unlink(out_path, recursive = TRUE)
 
   # --- MEMORY CLEANUP ---
-  rm(rasters, combined, web_raster, week_raster, abundance, pred, start_distr, initial_population_distr)
+  rm(combined, web_raster, week_raster, abundance, pred, start_distr, initial_population_distr)
   gc()
   # --- END MEMORY CLEANUP ---
 
@@ -256,7 +265,8 @@ flow <- function(loc, week, taxa, n, direction = "forward") {
     list(
       start = list(week = week, taxa = taxa, loc = loc),
       status = "success",
-      result = result
+      result = result,
+      geotiff = paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")
     )
   )
 }
