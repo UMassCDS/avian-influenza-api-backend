@@ -7,3 +7,6 @@ avian-influenza-api-backend.code-workspace
 
 .Rhistory
 .RData
+api/config/save_local.flag
+api/flow_debug.log
+api/localtmp/*
