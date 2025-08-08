@@ -31,8 +31,7 @@ pr <- pr %>%
   pr_mount("/hello", plumb("endpoints/hello.R")) %>%
   pr_mount("/predict", plumb("endpoints/predict.R")) %>%
   pr_mount("/mock", plumb("endpoints/mock_api.R")) %>%
-  pr_mount("/api", plumb("endpoints/api.R")) %>%
-  pr_mount("/s3test", plumb("endpoints/s3test.R"))
+  pr_mount("/api", plumb("endpoints/api.R"))
 
 # Run the API
 pr$run(host = "0.0.0.0", port = 8000)
