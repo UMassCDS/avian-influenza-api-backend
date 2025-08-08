@@ -75,3 +75,5 @@ if(!file.exists(local_cache))
 
 # Load flow colors
 flow_colors <- readRDS("config/flow_cols.Rds")
+
+Sys.setenv(AWS_DEFAULT_REGION = "us-east-2")
