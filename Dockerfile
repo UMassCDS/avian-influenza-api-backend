@@ -19,8 +19,9 @@ RUN apt-get update && apt-get install -y \
 # Ensure aws.ec2metadata is installed for instance profile credential retrieval on EC2
 RUN R -e "install.packages(c('plumber', 'aws.s3', 'remotes', 'Cairo', 'jsonlite', 'aws.ec2metadata'), repos='https://cloud.r-project.org')"
 
-# Install BirdFlowR from GitHub
+# Install BirdFlowR and BirdFlowAPI from GitHub
 RUN R -e "remotes::install_github('birdflow-science/BirdFlowR')"
+RUN R -e "remotes::install_github('UMassCDS/BirdFlowAPI')"
 
 # Set working directory inside the container
 WORKDIR /app
