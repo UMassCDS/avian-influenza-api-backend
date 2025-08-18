@@ -3,6 +3,7 @@ library(BirdFlowR)
 library(jsonlite)
 library(terra)
 library(aws.s3)
+library(BirdFlowAPI)
 
 # Load globals and helpers
 source("config/globals.R")
@@ -32,6 +33,11 @@ pr <- pr %>%
   pr_mount("/predict", plumb("endpoints/predict.R")) %>%
   pr_mount("/mock", plumb("endpoints/mock_api.R")) %>%
   pr_mount("/api", plumb("endpoints/api.R"))
+
+  # New endpoints using BirdFlowAPI
+  pr <- pr %>%
+    pr_mount("/birdflu/inflow", plumb("endpoints/birdflu_inflow.R")) %>%
+    pr_mount("/birdflu/outflow", plumb("endpoints/birdflu_outflow.R"))
 
 # Run the API
 pr$run(host = "0.0.0.0", port = 8000)
