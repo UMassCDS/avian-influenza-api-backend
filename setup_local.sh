@@ -27,13 +27,15 @@ fi
 echo "Installing R packages..."
 Rscript -e "install.packages(c('plumber', 'aws.s3', 'remotes', 'Cairo', 'jsonlite'), repos='https://cloud.r-project.org')"
 Rscript -e "remotes::install_github('birdflow-science/BirdFlowR')"
-if [ -d "../BirdFlowAPI" ]; then
-  echo "Installing BirdFlowAPI from local source..."
+USE_LOCAL_LIB=$(cat api/config/use_local_lib.flag)
+if [ "$USE_LOCAL_LIB" = "TRUE" ]; then
+  echo "Installing BirdFlowAPI from local library folder..."
   Rscript -e "devtools::install('../BirdFlowAPI')"
 else
   echo "Installing BirdFlowAPI from GitHub..."
   Rscript -e "remotes::install_github('UMassCDS/BirdFlowAPI')"
 fi
+
 
 # --- Make git ignore future changes to save_local.flag ---
 git update-index --assume-unchanged api/config/save_local.flag
