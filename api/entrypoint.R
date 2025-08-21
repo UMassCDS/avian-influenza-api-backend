@@ -5,39 +5,25 @@ library(terra)
 library(aws.s3)
 library(BirdFlowAPI)
 
-# Load globals and helpers
-source("config/globals.R")
-source("utils/helpers.R")
-source("utils/symbolize_raster_data.R")
-source("utils/save_json_palette.R")
-source("utils/range_rescale.R")
-source("utils/flow.R")
-
-# Create plumber router
+library(plumber)
 pr <- pr()
 
 # Add CORS filter
-pr <- pr %>%
-  pr_filter("cors", function(req, res) {
-    res$setHeader("Access-Control-Allow-Origin", "*")
-    res$setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-    res$setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
-    if (req$REQUEST_METHOD == "OPTIONS") {
-      res$status <- 200
-      return(list())
-    } else {
-      forward()
-    }
-  }) %>%
-  pr_mount("/hello", plumb("endpoints/hello.R")) %>%
-  pr_mount("/predict", plumb("endpoints/predict.R")) %>%
-  pr_mount("/mock", plumb("endpoints/mock_api.R")) %>%
-  pr_mount("/api", plumb("endpoints/api.R"))
-
-  # New endpoints using BirdFlowAPI
-  pr <- pr %>%
-    pr_mount("/birdflu/inflow", plumb("endpoints/birdflu_inflow.R")) %>%
-    pr_mount("/birdflu/outflow", plumb("endpoints/birdflu_outflow.R"))
+pr <- pr_filter(pr, "cors", function(req, res) {
+  res$setHeader("Access-Control-Allow-Origin", "*")
+  res$setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+  res$setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+  if (req$REQUEST_METHOD == "OPTIONS") {
+    res$status <- 200
+    return(list())
+  } else {
+    forward()
+  }
+})
+pr <- pr_mount(pr, "/hello", plumb("endpoints/hello.R"))
+pr <- pr_mount(pr, "/mock", plumb("endpoints/mock_api.R"))
+pr <- pr_mount(pr, "/birdflu/inflow", plumb("endpoints/birdflu_inflow.R"))
+pr <- pr_mount(pr, "/birdflu/outflow", plumb("endpoints/birdflu_outflow.R"))
 
 # Run the API
 pr$run(host = "0.0.0.0", port = 8000)
