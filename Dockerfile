@@ -22,6 +22,11 @@ RUN R -e "install.packages(c('plumber', 'aws.s3', 'remotes', 'Cairo', 'jsonlite'
 # Install BirdFlowR from GitHub
 RUN R -e "remotes::install_github('birdflow-science/BirdFlowR')"
 
+# RUN R -e "remotes::install_github('UMassCDS/BirdFlowAPI')"
+
+COPY BirdFlowAPI.tar.gz /BirdFlowAPI.tar.gz
+RUN R -e "install.packages('/BirdFlowAPI.tar.gz', repos = NULL, type = 'source')"
+
 # Set working directory inside the container
 WORKDIR /app
 
