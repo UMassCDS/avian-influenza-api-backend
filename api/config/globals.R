@@ -31,7 +31,7 @@ species <- dplyr::left_join(species, pop, by = dplyr::join_by("species" == "spec
 #-------------------------------------------------------------------------------
 # Load BirdFlow models
 #-------------------------------------------------------------------------------
-birdflow_options(collection_url = "https://birdflow-science.s3.amazonaws.com/avian_flu/")
+birdflow_options(collection_url = "https://birdflow-science.s3.amazonaws.com/sparse_avian_flu/")
 index <- load_collection_index()
 if(!all(species$species %in% index$species_code)) {
    miss <- setdiff(species$species, index$species_code)
