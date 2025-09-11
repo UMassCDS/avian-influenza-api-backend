@@ -274,10 +274,10 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
   result <- vector("list", length = n + 1)
   for (i in seq_along(pred_weeks)) {
     result[[i]] <- list(
-      week = pred_weeks[i],
-      url = if (save_local) png_paths[i] else png_urls[i],
-      legend = if (save_local) symbology_paths[i] else symbology_urls[i],
-      type = flow_type
+      week = as.integer(pred_weeks[i]),
+      url = as.character(if (save_local) png_paths[i] else png_urls[i]),
+      legend = as.character(if (save_local) symbology_paths[i] else symbology_urls[i]),
+      type = as.character(flow_type)
     )
   }
 
