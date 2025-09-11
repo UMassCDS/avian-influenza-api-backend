@@ -76,7 +76,7 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
   names(lat_lon) <- c("lat", "lon")
 
   if (!taxa %in% c(species$species, "total")) return(format_error("invalid taxa"))
-  if (!week %in% as.character(1:52)) return(format_error("invalid week"))
+  if (!week %in% as.character(0:51)) return(format_error("invalid week"))
   if (!n %in% as.character(1:52)) return(format_error("invalid n"))
   if (!direction %in% c("forward", "backward")) return(format_error("invalid direction"))
 
@@ -275,9 +275,9 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
   for (i in seq_along(pred_weeks)) {
     result[[i]] <- list(
       week = as.integer(pred_weeks[i]),
-      url = as.character(if (save_local) png_paths[i] else png_urls[i]),
-      legend = as.character(if (save_local) symbology_paths[i] else symbology_urls[i]),
-      type = as.character(flow_type)
+      url = unlist(if (save_local) png_paths[i] else png_urls[i]),
+      legend = unlist(if (save_local) symbology_paths[i] else symbology_urls[i]),
+      type = unlist(flow_type)
     )
   }
 
