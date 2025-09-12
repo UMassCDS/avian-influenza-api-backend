@@ -54,9 +54,13 @@ if (file.exists(save_local_path)) {
 flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LOCAL) {
   format_error <- function(message, status = "error") {
     list(
-      start = list(week = week, taxa = taxa, loc = loc),
-      status = status,
-      message = message
+      start = list(
+        week = jsonlite::unbox(as.integer(week)),
+        taxa = jsonlite::unbox(as.character(taxa)),
+        location = lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
+      ),
+      status = jsonlite::unbox(as.character(status)),
+      message = jsonlite::unbox(as.character(message))
     )
   }
 
@@ -153,7 +157,8 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
           taxa = jsonlite::unbox(as.character(taxa)),
           location = lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
         ),
-        status = jsonlite::unbox("cached"),
+        status = jsonlite::unbox("success"),
+        message = jsonlite::unbox("Returned cached result"),
         result = result,
         geotiff = jsonlite::unbox(as.character(if (save_local) tiff_local_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")))
       )
@@ -294,6 +299,7 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
         location = lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
       ),
       status = jsonlite::unbox("success"),
+      message = jsonlite::unbox("Computation successful"),
       result = result,
       geotiff = jsonlite::unbox(as.character(if (save_local) tiff_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")))
     )
