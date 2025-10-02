@@ -2,6 +2,7 @@ library(plumber)
 library(devtools)
 
 # Load BirdFlowAPI package from GitHub
+# TODO: remove the ref parameter after merging the feature/export-s3-functions PR in BirdFlowAPI
 devtools::install_github("UMassCDS/BirdFlowAPI", ref = "feature/export-s3-functions")
 
 # Set-up BirdFlowAPI package
