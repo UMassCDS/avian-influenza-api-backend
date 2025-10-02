@@ -1,22 +1,16 @@
 library(plumber)
-library(BirdFlowR)
-library(jsonlite)
-library(terra)
-library(aws.s3)
-
-# Load globals and helpers
-source("config/globals.R")
-source("utils/helpers.R")
-source("utils/symbolize_raster_data.R")
-source("utils/save_json_palette.R")
-source("utils/range_rescale.R")
-source("utils/flow.R")
+library(devtools)
 
 # Load BirdFlowAPI package from GitHub
-devtools::install_github("UMassCDS/BirdFlowAPI")
+devtools::install_github("UMassCDS/BirdFlowAPI", ref = "feature/export-s3-functions")
 
-# Create plumber router
-pr <- pr()
+# Set-up BirdFlowAPI package
+library(BirdFlowAPI)
+load_models()
+BirdFlowAPI:::set_s3_config()
+
+api_file <- system.file("plumber/flow/endpoints/api.R", package = "BirdFlowAPI")
+pr <- plumber::plumb(api_file)
 
 # Add CORS filter
 pr <- pr %>%
@@ -30,11 +24,7 @@ pr <- pr %>%
     } else {
       forward()
     }
-  }) %>%
-  pr_mount("/hello", plumb("endpoints/hello.R")) %>%
-  pr_mount("/predict", plumb("endpoints/predict.R")) %>%
-  pr_mount("/mock", plumb("endpoints/mock_api.R")) %>%
-  pr_mount("/api", plumb("endpoints/api.R"))
+  })
 
 # Run the API
 pr$run(host = "0.0.0.0", port = 8000)
