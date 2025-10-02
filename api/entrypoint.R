@@ -12,6 +12,9 @@ source("utils/save_json_palette.R")
 source("utils/range_rescale.R")
 source("utils/flow.R")
 
+# Load BirdFlowAPI package from GitHub
+devtools::install_github("UMassCDS/BirdFlowAPI")
+
 # Create plumber router
 pr <- pr()
 
