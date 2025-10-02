@@ -9,11 +9,21 @@ library(BirdFlowAPI)
 load_models()
 BirdFlowAPI:::set_s3_config()
 
-api_file <- system.file("plumber/flow/endpoints/api.R", package = "BirdFlowAPI")
-pr <- plumber::plumb(api_file)
+# File paths for all endpoints in BirdFlowAPI
+files <- c("api.R", "hello.R", "mock_api.R", "predict.R", "status.R")
+files <- file.path(system.file("plumber/flow/endpoints", package = "BirdFlowAPI"), files)
+paths <- c("api", "hello", "mock", "predict", "status")
+
+# Create plumber router
+pr <- plumber::pr()
+
+# Add all endpoints
+for(i in seq_along(files)) {
+  pr <- pr |> pr_mount(paste0("/", paths[i]), plumb(files[i]))
+}
 
 # Add CORS filter
-pr <- pr %>%
+pr <- pr |>
   pr_filter("cors", function(req, res) {
     res$setHeader("Access-Control-Allow-Origin", "*")
     res$setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
