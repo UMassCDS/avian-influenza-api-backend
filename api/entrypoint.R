@@ -7,7 +7,7 @@ devtools::install_github("UMassCDS/BirdFlowAPI", ref = "feature/export-s3-functi
 
 # Set-up BirdFlowAPI package
 library(BirdFlowAPI)
-load_models()
+BirdFlowAPI::load_models()
 BirdFlowAPI:::set_s3_config()
 
 # File paths for all endpoints in BirdFlowAPI
