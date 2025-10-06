@@ -80,7 +80,7 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
   names(lat_lon) <- c("lat", "lon")
 
   if (!taxa %in% c(species$species, "total")) return(format_error("invalid taxa"))
-  if (!week %in% as.character(1:52)) return(format_error("invalid week"))
+  if (!week %in% as.character(0:51)) return(format_error("invalid week"))
   if (!n %in% as.character(1:52)) return(format_error("invalid n"))
   if (!direction %in% c("forward", "backward")) return(format_error("invalid direction"))
 
