@@ -54,9 +54,13 @@ if (file.exists(save_local_path)) {
 flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LOCAL) {
   format_error <- function(message, status = "error") {
     list(
-      start = list(week = week, taxa = taxa, loc = loc),
-      status = status,
-      message = message
+      start = list(
+        week = jsonlite::unbox(as.integer(week)),
+        taxa = jsonlite::unbox(as.character(taxa)),
+        location = lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
+      ),
+      status = jsonlite::unbox(as.character(status)),
+      message = jsonlite::unbox(as.character(message))
     )
   }
 
@@ -139,19 +143,24 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
     result <- vector("list", length = n + 1)
     for (i in seq_along(pred_weeks)) {
       result[[i]] <- list(
-        week = pred_weeks[i],
-        url = if (save_local) png_local_paths[i] else png_urls[i],
-        legend = if (save_local) json_local_paths[i] else symbology_urls[i],
-        type = flow_type
+        week = jsonlite::unbox(as.integer(pred_weeks[i])),
+        url = jsonlite::unbox(as.character(if (save_local) png_local_paths[i] else png_urls[i])),
+        legend = jsonlite::unbox(as.character(if (save_local) json_local_paths[i] else symbology_urls[i])),
+        type = jsonlite::unbox(as.character(flow_type))
       )
     }
     log_progress(if (save_local) "Returned cached result from localtmp" else "Returned cached result from S3")
     return(
       list(
-        start = list(week = week, taxa = taxa, loc = loc),
-        status = "cached",
+        start = list(
+          week = jsonlite::unbox(as.integer(week)),
+          taxa = jsonlite::unbox(as.character(taxa)),
+          location = lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
+        ),
+        status = jsonlite::unbox("success"),
+        message = jsonlite::unbox("Returned cached result"),
         result = result,
-        geotiff = if (save_local) tiff_local_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")
+        geotiff = jsonlite::unbox(as.character(if (save_local) tiff_local_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")))
       )
     )
   }
@@ -274,20 +283,25 @@ flow <- function(loc, week, taxa, n, direction = "forward", save_local = SAVE_LO
   result <- vector("list", length = n + 1)
   for (i in seq_along(pred_weeks)) {
     result[[i]] <- list(
-      week = as.integer(pred_weeks[i]),
-      url = unlist(if (save_local) png_paths[i] else png_urls[i]),
-      legend = unlist(if (save_local) symbology_paths[i] else symbology_urls[i]),
-      type = unlist(flow_type)
+      week = jsonlite::unbox(as.integer(pred_weeks[i])),
+      url = jsonlite::unbox(as.character(if (save_local) png_paths[i] else png_urls[i])),
+      legend = jsonlite::unbox(as.character(if (save_local) symbology_paths[i] else symbology_urls[i])),
+      type = jsonlite::unbox(as.character(flow_type))
     )
   }
 
   log_progress("Flow function complete")
   return(
     list(
-      start = list(week = week, taxa = taxa, loc = loc),
-      status = "success",
+      start = list(
+        week = jsonlite::unbox(as.integer(week)),
+        taxa = jsonlite::unbox(as.character(taxa)),
+        location = lapply(strsplit(loc, ";")[[1]], function(pair) as.numeric(strsplit(pair, ",")[[1]]))
+      ),
+      status = jsonlite::unbox("success"),
+      message = jsonlite::unbox("Computation successful"),
       result = result,
-      geotiff = if (save_local) tiff_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")
+      geotiff = jsonlite::unbox(as.character(if (save_local) tiff_path else paste0(s3_flow_url, cache_prefix, flow_type, "_", taxa, ".tif")))
     )
   )
 }
