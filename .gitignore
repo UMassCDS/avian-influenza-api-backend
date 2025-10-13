@@ -10,3 +10,5 @@ avian-influenza-api-backend.code-workspace
 api/config/save_local.flag
 api/flow_debug.log
 api/localtmp/*
+
+.vscode
