@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     libproj-dev \
     libgeos-dev \
     libudunits2-dev \
+    libsodium-dev \
+    libmagick++-dev \
+    libv8-dev \
     cargo \
     rustc \
     && rm -rf /var/lib/apt/lists/*
