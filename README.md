@@ -9,7 +9,7 @@ Source code for API backend for the avian influenza project.
 
 ## Run with Docker
 ```bash
-docker build -t plumber-api .
+docker build --platform linux/amd64 -t plumber-api .
 docker run -d -p 8000:8000 plumber-api
 ```
 
