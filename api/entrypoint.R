@@ -7,7 +7,8 @@ devtools::install_github("UMassCDS/BirdFlowAPI")
 # Set-up BirdFlowAPI package
 library(BirdFlowAPI)
 BirdFlowAPI::load_models()
-BirdFlowAPI:::set_s3_config()
+# BirdFlowAPI:::set_s3_config()
+BirdFlowAPI:::set_s3_config(bucket = "avianinfluenza", region = "us-east-2")
 
 # File paths for all endpoints in BirdFlowAPI
 files <- c("api.R", "hello.R", "mock_api.R", "predict.R", "status.R")
