@@ -25,8 +25,11 @@ RUN R -e "remotes::install_github('birdflow-science/BirdFlowR')"
 # Set working directory inside the container
 WORKDIR /app
 
+
 # Copy the API directory
 COPY api /app/api
+# Remove any cache files from localtmp after copy
+RUN rm -rf /app/api/localtmp/*
 
 # IMPORTANT: Set the AWS region as an environment variable in the Dockerfile.
 # This ensures it's available to the R session when the container starts,
