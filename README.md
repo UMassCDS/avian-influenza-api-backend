@@ -1,4 +1,4 @@
-# Avian Influenza API Backend
+# Avian Influenza Backend API
 This API provides programmatic access to avian influenza bird migration modeling and prediction. It exposes endpoints for querying bird movement flows, retrieving geospatial data and visualizations, and interacting with AWS S3 for data storage. The API is designed for scientific, ecological, and public health applications where understanding and visualizing bird migration patterns is important for avian influenza research and response.
 
 ## Structure
